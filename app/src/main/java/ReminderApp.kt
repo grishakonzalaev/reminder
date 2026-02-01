@@ -13,9 +13,20 @@ class ReminderApp : android.app.Application() {
     override fun onCreate() {
         super.onCreate()
         instance = this
+        rescheduleAllFutureReminders()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             registerPhoneAccount()
         }
+    }
+
+    /** Восстанавливает будильники для всех будущих напоминаний (после перезагрузки и при любом старте процесса). */
+    private fun rescheduleAllFutureReminders() {
+        val repo = ReminderRepository(this)
+        val scheduler = AlarmScheduler(this)
+        val now = System.currentTimeMillis()
+        repo.getAll()
+            .filter { it.timeMillis > now }
+            .forEach { scheduler.schedule(it) }
     }
 
     @RequiresApi(Build.VERSION_CODES.M)
