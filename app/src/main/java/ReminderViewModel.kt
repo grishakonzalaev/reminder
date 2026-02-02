@@ -27,6 +27,15 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun updateReminder(reminder: Reminder, message: String, timeMillis: Long) {
+        viewModelScope.launch {
+            alarmScheduler.cancel(reminder.id)
+            repo.updateReminder(reminder.id, message, timeMillis)
+            val updated = Reminder(id = reminder.id, message = message, timeMillis = timeMillis)
+            alarmScheduler.schedule(updated)
+        }
+    }
+
     fun deleteReminder(reminder: Reminder) {
         viewModelScope.launch {
             alarmScheduler.cancel(reminder.id)

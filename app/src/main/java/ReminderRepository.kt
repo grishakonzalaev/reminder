@@ -55,6 +55,14 @@ class ReminderRepository(context: Context) {
         return reminder
     }
 
+    fun updateReminder(id: Long, message: String, timeMillis: Long) {
+        val list = _reminders.value
+        val updated = Reminder(id = id, message = message, timeMillis = timeMillis)
+        val newList = list.map { if (it.id == id) updated else it }.sortedBy { it.timeMillis }
+        _reminders.value = newList
+        saveToPrefs(newList)
+    }
+
     fun deleteReminder(reminder: Reminder) {
         val newList = _reminders.value.filter { it.id != reminder.id }
         _reminders.value = newList

@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material3.AlertDialog
@@ -108,6 +109,7 @@ class MainActivity : ComponentActivity() {
 fun ReminderScreen(viewModel: ReminderViewModel = viewModel()) {
     val reminders by viewModel.reminders.collectAsState(initial = emptyList())
     var showAddDialog by remember { mutableStateOf(false) }
+    var reminderToEdit by remember { mutableStateOf<Reminder?>(null) }
     var showSettings by remember { mutableStateOf(false) }
     var selectionMode by remember { mutableStateOf(false) }
     var selectedIds by remember { mutableStateOf(setOf<Long>()) }
@@ -128,7 +130,7 @@ fun ReminderScreen(viewModel: ReminderViewModel = viewModel()) {
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    "Напоминалка",
+                    "Напоминалка 1.3",
                     style = MaterialTheme.typography.titleLarge
                 )
                 if (!selectionMode) {
@@ -262,6 +264,7 @@ fun ReminderScreen(viewModel: ReminderViewModel = viewModel()) {
                         onToggleSelect = {
                             selectedIds = if (r.id in selectedIds) selectedIds - r.id else selectedIds + r.id
                         },
+                        onEdit = { reminderToEdit = r },
                         onDelete = { viewModel.deleteReminder(r) }
                     )
                 }
@@ -275,6 +278,16 @@ fun ReminderScreen(viewModel: ReminderViewModel = viewModel()) {
             onConfirm = { message, timeMillis ->
                 viewModel.addReminder(message, timeMillis)
                 showAddDialog = false
+            }
+        )
+    }
+    reminderToEdit?.let { reminder ->
+        EditReminderDialog(
+            reminder = reminder,
+            onDismiss = { reminderToEdit = null },
+            onConfirm = { message, timeMillis ->
+                viewModel.updateReminder(reminder, message, timeMillis)
+                reminderToEdit = null
             }
         )
     }
@@ -478,6 +491,7 @@ fun ReminderItem(
     selectionMode: Boolean = false,
     isSelected: Boolean = false,
     onToggleSelect: (() -> Unit)? = null,
+    onEdit: (() -> Unit)? = null,
     onDelete: () -> Unit
 ) {
     val formatter = remember { SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault()) }
@@ -514,12 +528,92 @@ fun ReminderItem(
                 )
             }
             if (!selectionMode) {
+                onEdit?.let { edit ->
+                    IconButton(onClick = edit) {
+                        Icon(Icons.Default.Edit, contentDescription = "Изменить")
+                    }
+                }
                 IconButton(onClick = onDelete) {
                     Icon(Icons.Default.Delete, contentDescription = "Удалить", tint = MaterialTheme.colorScheme.error)
                 }
             }
         }
     }
+}
+
+@Composable
+fun EditReminderDialog(
+    reminder: Reminder,
+    onDismiss: () -> Unit,
+    onConfirm: (message: String, timeMillis: Long) -> Unit
+) {
+    var message by remember(reminder.id) { mutableStateOf(reminder.message) }
+    var timeMillis by remember(reminder.id) { mutableStateOf(reminder.timeMillis) }
+    val ctx = LocalContext.current
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Редактировать напоминание") },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = message,
+                    onValueChange = { message = it },
+                    label = { Text("Текст напоминания (озвучит TTS)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 2
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("Время: ${SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault()).format(Date(timeMillis))}")
+                Button(
+                    onClick = {
+                        val cal = Calendar.getInstance().apply { timeInMillis = timeMillis }
+                        DatePickerDialog(
+                            ctx,
+                            { _, y, m, d ->
+                                cal.set(Calendar.YEAR, y)
+                                cal.set(Calendar.MONTH, m)
+                                cal.set(Calendar.DAY_OF_MONTH, d)
+                                TimePickerDialog(
+                                    ctx,
+                                    { _, h, min ->
+                                        cal.set(Calendar.HOUR_OF_DAY, h)
+                                        cal.set(Calendar.MINUTE, min)
+                                        timeMillis = cal.timeInMillis
+                                    },
+                                    cal.get(Calendar.HOUR_OF_DAY),
+                                    cal.get(Calendar.MINUTE),
+                                    true
+                                ).show()
+                            },
+                            cal.get(Calendar.YEAR),
+                            cal.get(Calendar.MONTH),
+                            cal.get(Calendar.DAY_OF_MONTH)
+                        ).show()
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Выбрать дату и время")
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    if (message.isNotBlank()) {
+                        onConfirm(message, timeMillis)
+                    }
+                }
+            ) {
+                Text("Сохранить")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Отмена")
+            }
+        }
+    )
 }
 
 @Composable
