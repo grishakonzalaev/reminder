@@ -25,14 +25,19 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Accept SDK licenses
+        run: |
+          yes | sdkmanager --licenses || true
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_HOME }}
+
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build Release APK
-        run: ./gradlew assembleRelease --no-daemon
-
-      - name: Build Release AAB
-        run: ./gradlew bundleRelease --no-daemon
+      - name: Build Release (APK and AAB)
+        run: ./gradlew assembleRelease bundleRelease --no-daemon
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_HOME }}
 
       - name: Get version from tag
         id: version
