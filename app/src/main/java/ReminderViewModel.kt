@@ -35,7 +35,8 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
     private fun syncFromCalendar() {
         val now = System.currentTimeMillis()
         val toMillis = now + 30L * 24 * 60 * 60 * 1000 // +30 дней
-        val instances = CalendarHelper.queryFutureInstances(app, now, toMillis)
+        val readCalendarId = ReminderPreferences.getReadCalendarId(app)
+        val instances = CalendarHelper.queryFutureInstances(app, now, toMillis, readCalendarId)
         for (inst in instances) {
             if (repo.isCalendarInstanceImported(inst.eventId, inst.beginMillis)) continue
             val message = inst.title.ifBlank { "Событие календаря" }

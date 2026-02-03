@@ -13,6 +13,7 @@ import android.telecom.TelecomManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -45,6 +46,8 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -82,9 +85,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        ReminderPreferences.applyThemeMode(this)
         requestNeededPermissions()
         setContent {
-            MaterialTheme {
+            ReminderTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     ReminderScreen()
                 }
@@ -112,6 +116,22 @@ class MainActivity : ComponentActivity() {
         }
         if (perms.isNotEmpty()) requestPermission.launch(perms.toTypedArray())
     }
+}
+
+/** Тема приложения по настройке: светлая, тёмная или как в системе. */
+@Composable
+fun ReminderTheme(content: @Composable () -> Unit) {
+    val context = LocalContext.current
+    val themeMode = ReminderPreferences.getThemeMode(context)
+    val darkTheme = when (themeMode) {
+        ReminderPreferences.THEME_DARK -> true
+        ReminderPreferences.THEME_LIGHT -> false
+        else -> isSystemInDarkTheme()
+    }
+    MaterialTheme(
+        colorScheme = if (darkTheme) darkColorScheme() else lightColorScheme(),
+        content = content
+    )
 }
 
 @Composable
@@ -314,8 +334,13 @@ fun SettingsScreen(onBack: () -> Unit) {
     var themeMode by remember { mutableStateOf(ReminderPreferences.getThemeMode(ctx)) }
     var addToCalendar by remember { mutableStateOf(ReminderPreferences.getAddToCalendar(ctx)) }
     var syncFromCalendar by remember { mutableStateOf(ReminderPreferences.getSyncFromCalendar(ctx)) }
+    var writeCalendarId by remember { mutableStateOf(ReminderPreferences.getWriteCalendarId(ctx)) }
+    var readCalendarId by remember { mutableStateOf(ReminderPreferences.getReadCalendarId(ctx)) }
+    var showWriteCalendarDialog by remember { mutableStateOf(false) }
+    var showReadCalendarDialog by remember { mutableStateOf(false) }
     var autoDeletePast by remember { mutableStateOf(ReminderPreferences.getAutoDeletePast(ctx)) }
     var useCallApi by remember { mutableStateOf(TtsPreferences.getUseCallApi(ctx)) }
+    val availableCalendars = remember { CalendarHelper.getAvailableCalendars(ctx) }
 
     DisposableEffect(Unit) {
         onDispose {
@@ -352,15 +377,15 @@ fun SettingsScreen(onBack: () -> Unit) {
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
-            Text("Тёмная тема", style = MaterialTheme.typography.titleMedium)
+            Text("Тема", style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(8.dp))
             SingleChoiceSegmentedButtonRow(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 listOf(
-                    ReminderPreferences.THEME_LIGHT to "Выключена",
-                    ReminderPreferences.THEME_DARK to "Включена",
-                    ReminderPreferences.THEME_SYSTEM to "Как в системе"
+                    ReminderPreferences.THEME_SYSTEM to "Как в системе",
+                    ReminderPreferences.THEME_LIGHT to "Светлая",
+                    ReminderPreferences.THEME_DARK to "Тёмная"
                 ).forEachIndexed { index, (value, label) ->
                     SegmentedButton(
                         shape = SegmentedButtonDefaults.itemShape(index = index, count = 3),
@@ -416,6 +441,112 @@ fun SettingsScreen(onBack: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 4.dp)
             )
+            val writeCalendarLabel = if (writeCalendarId == 0L) "Первый доступный" else availableCalendars.find { it.first == writeCalendarId }?.second ?: "Календарь $writeCalendarId"
+            val readCalendarLabel = if (readCalendarId == 0L) "Все календари" else availableCalendars.find { it.first == readCalendarId }?.second ?: "Календарь $readCalendarId"
+            Spacer(modifier = Modifier.height(16.dp))
+            Text("Календарь для записи напоминаний", style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(8.dp))
+            Button(
+                onClick = { showWriteCalendarDialog = true },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(writeCalendarLabel)
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text("Календарь для чтения событий", style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(8.dp))
+            Button(
+                onClick = { showReadCalendarDialog = true },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(readCalendarLabel)
+            }
+            if (showWriteCalendarDialog) {
+                AlertDialog(
+                    onDismissRequest = { showWriteCalendarDialog = false },
+                    title = { Text("Календарь для записи") },
+                    text = {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        writeCalendarId = 0L
+                                        ReminderPreferences.setWriteCalendarId(ctx, 0L)
+                                        showWriteCalendarDialog = false
+                                    }
+                                    .padding(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Первый доступный")
+                            }
+                            availableCalendars.forEach { (id, name) ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            writeCalendarId = id
+                                            ReminderPreferences.setWriteCalendarId(ctx, id)
+                                            showWriteCalendarDialog = false
+                                        }
+                                        .padding(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(name)
+                                }
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(onClick = { showWriteCalendarDialog = false }) {
+                            Text("Закрыть")
+                        }
+                    }
+                )
+            }
+            if (showReadCalendarDialog) {
+                AlertDialog(
+                    onDismissRequest = { showReadCalendarDialog = false },
+                    title = { Text("Календарь для чтения") },
+                    text = {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        readCalendarId = 0L
+                                        ReminderPreferences.setReadCalendarId(ctx, 0L)
+                                        showReadCalendarDialog = false
+                                    }
+                                    .padding(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Все календари")
+                            }
+                            availableCalendars.forEach { (id, name) ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            readCalendarId = id
+                                            ReminderPreferences.setReadCalendarId(ctx, id)
+                                            showReadCalendarDialog = false
+                                        }
+                                        .padding(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(name)
+                                }
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(onClick = { showReadCalendarDialog = false }) {
+                            Text("Закрыть")
+                        }
+                    }
+                )
+            }
             Spacer(modifier = Modifier.height(24.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),

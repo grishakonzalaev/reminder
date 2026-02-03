@@ -9,6 +9,8 @@ object ReminderPreferences {
     private const val KEY_THEME_MODE = "theme_mode"
     private const val KEY_ADD_TO_CALENDAR = "add_to_calendar"
     private const val KEY_SYNC_FROM_CALENDAR = "sync_from_calendar"
+    private const val KEY_WRITE_CALENDAR_ID = "write_calendar_id"
+    private const val KEY_READ_CALENDAR_ID = "read_calendar_id"
 
     const val THEME_LIGHT = "light"
     const val THEME_DARK = "dark"
@@ -67,5 +69,27 @@ object ReminderPreferences {
     fun setSyncFromCalendar(context: Context, enabled: Boolean) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
             .putBoolean(KEY_SYNC_FROM_CALENDAR, enabled).apply()
+    }
+
+    /** ID календаря для записи напоминаний; 0 = первый доступный. */
+    fun getWriteCalendarId(context: Context): Long {
+        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getLong(KEY_WRITE_CALENDAR_ID, 0L)
+    }
+
+    fun setWriteCalendarId(context: Context, calendarId: Long) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putLong(KEY_WRITE_CALENDAR_ID, calendarId).apply()
+    }
+
+    /** ID календаря для чтения событий; 0 = все календари. */
+    fun getReadCalendarId(context: Context): Long {
+        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getLong(KEY_READ_CALENDAR_ID, 0L)
+    }
+
+    fun setReadCalendarId(context: Context, calendarId: Long) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putLong(KEY_READ_CALENDAR_ID, calendarId).apply()
     }
 }
