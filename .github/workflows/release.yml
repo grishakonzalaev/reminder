@@ -11,6 +11,9 @@ jobs:
     permissions:
       contents: write  # для создания Release и загрузки артефактов
 
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,22 +25,19 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Accept SDK licenses
+      - name: Accept Android SDK licenses
         run: |
-          yes | sdkmanager --licenses || true
-        env:
-          ANDROID_HOME: ${{ env.ANDROID_HOME }}
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ -x "$SDKMANAGER" ]; then
+            yes | "$SDKMANAGER" --licenses || true
+          fi
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
       - name: Build Release (APK and AAB)
-        run: ./gradlew assembleRelease bundleRelease --no-daemon
-        env:
-          ANDROID_HOME: ${{ env.ANDROID_HOME }}
+        run: ./gradlew assembleRelease bundleRelease --no-daemon --stacktrace
 
       - name: Get version from tag
         id: version
