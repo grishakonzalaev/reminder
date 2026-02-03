@@ -9,6 +9,8 @@ import org.json.JSONObject
 
 private const val PREFS_NAME = "reminders"
 private const val KEY_LIST = "list"
+private const val KEY_CALENDAR_EVENT_IDS = "calendar_event_ids"
+private const val KEY_IMPORTED_CALENDAR_INSTANCES = "imported_calendar_instances"
 
 class ReminderRepository(context: Context) {
     private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -91,4 +93,55 @@ class ReminderRepository(context: Context) {
     }
 
     fun getAll(): List<Reminder> = _reminders.value
+
+    fun getCalendarEventId(reminderId: Long): Long? {
+        val json = prefs.getString(KEY_CALENDAR_EVENT_IDS, "{}") ?: return null
+        return try {
+            val obj = org.json.JSONObject(json)
+            if (obj.has(reminderId.toString())) obj.getLong(reminderId.toString()) else null
+        } catch (_: Exception) { null }
+    }
+
+    fun setCalendarEventId(reminderId: Long, eventId: Long) {
+        val json = prefs.getString(KEY_CALENDAR_EVENT_IDS, "{}") ?: "{}"
+        val obj = try { org.json.JSONObject(json) } catch (_: Exception) { org.json.JSONObject() }
+        obj.put(reminderId.toString(), eventId)
+        prefs.edit().putString(KEY_CALENDAR_EVENT_IDS, obj.toString()).apply()
+    }
+
+    fun removeCalendarEventId(reminderId: Long) {
+        val json = prefs.getString(KEY_CALENDAR_EVENT_IDS, "{}") ?: return
+        try {
+            val obj = org.json.JSONObject(json)
+            obj.remove(reminderId.toString())
+            prefs.edit().putString(KEY_CALENDAR_EVENT_IDS, obj.toString()).apply()
+        } catch (_: Exception) { }
+    }
+
+    fun removeCalendarEventIds(reminderIds: List<Long>) {
+        val json = prefs.getString(KEY_CALENDAR_EVENT_IDS, "{}") ?: return
+        try {
+            val obj = org.json.JSONObject(json)
+            reminderIds.forEach { obj.remove(it.toString()) }
+            prefs.edit().putString(KEY_CALENDAR_EVENT_IDS, obj.toString()).apply()
+        } catch (_: Exception) { }
+    }
+
+    /** Ключ экземпляра события календаря (eventId_beginMillis) для обратной синхронизации. */
+    fun isCalendarInstanceImported(eventId: Long, beginMillis: Long): Boolean {
+        val key = "${eventId}_$beginMillis"
+        val json = prefs.getString(KEY_IMPORTED_CALENDAR_INSTANCES, "[]") ?: return false
+        return try {
+            val arr = JSONArray(json)
+            (0 until arr.length()).any { arr.getString(it) == key }
+        } catch (_: Exception) { false }
+    }
+
+    fun addImportedCalendarInstance(eventId: Long, beginMillis: Long) {
+        val key = "${eventId}_$beginMillis"
+        val json = prefs.getString(KEY_IMPORTED_CALENDAR_INSTANCES, "[]") ?: "[]"
+        val arr = try { JSONArray(json) } catch (_: Exception) { JSONArray() }
+        arr.put(key)
+        prefs.edit().putString(KEY_IMPORTED_CALENDAR_INSTANCES, arr.toString()).apply()
+    }
 }

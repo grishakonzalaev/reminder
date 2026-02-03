@@ -50,6 +50,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -100,6 +103,12 @@ class MainActivity : ComponentActivity() {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.SCHEDULE_EXACT_ALARM) != PackageManager.PERMISSION_GRANTED) {
                 perms.add(Manifest.permission.SCHEDULE_EXACT_ALARM)
             }
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CALENDAR) != PackageManager.PERMISSION_GRANTED) {
+            perms.add(Manifest.permission.READ_CALENDAR)
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_CALENDAR) != PackageManager.PERMISSION_GRANTED) {
+            perms.add(Manifest.permission.WRITE_CALENDAR)
         }
         if (perms.isNotEmpty()) requestPermission.launch(perms.toTypedArray())
     }
@@ -302,6 +311,9 @@ fun SettingsScreen(onBack: () -> Unit) {
     var speechRate by remember { mutableStateOf(TtsPreferences.getSpeechRate(ctx)) }
     var showTtsList by remember { mutableStateOf(false) }
     var testTts by remember { mutableStateOf<TextToSpeech?>(null) }
+    var themeMode by remember { mutableStateOf(ReminderPreferences.getThemeMode(ctx)) }
+    var addToCalendar by remember { mutableStateOf(ReminderPreferences.getAddToCalendar(ctx)) }
+    var syncFromCalendar by remember { mutableStateOf(ReminderPreferences.getSyncFromCalendar(ctx)) }
     var autoDeletePast by remember { mutableStateOf(ReminderPreferences.getAutoDeletePast(ctx)) }
     var useCallApi by remember { mutableStateOf(TtsPreferences.getUseCallApi(ctx)) }
 
@@ -340,6 +352,71 @@ fun SettingsScreen(onBack: () -> Unit) {
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
+            Text("Тёмная тема", style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(8.dp))
+            SingleChoiceSegmentedButtonRow(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                listOf(
+                    ReminderPreferences.THEME_LIGHT to "Выключена",
+                    ReminderPreferences.THEME_DARK to "Включена",
+                    ReminderPreferences.THEME_SYSTEM to "Как в системе"
+                ).forEachIndexed { index, (value, label) ->
+                    SegmentedButton(
+                        shape = SegmentedButtonDefaults.itemShape(index = index, count = 3),
+                        onClick = {
+                            themeMode = value
+                            ReminderPreferences.setThemeMode(ctx, value)
+                            (ctx as? android.app.Activity)?.recreate()
+                        },
+                        selected = themeMode == value,
+                        label = { Text(label) }
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Добавлять напоминания в календарь", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                Switch(
+                    checked = addToCalendar,
+                    onCheckedChange = {
+                        addToCalendar = it
+                        ReminderPreferences.setAddToCalendar(ctx, it)
+                    }
+                )
+            }
+            Text(
+                "При включении каждое напоминание создаётся как событие в календаре Android.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Читать календарь и добавлять события как напоминания", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                Switch(
+                    checked = syncFromCalendar,
+                    onCheckedChange = {
+                        syncFromCalendar = it
+                        ReminderPreferences.setSyncFromCalendar(ctx, it)
+                    }
+                )
+            }
+            Text(
+                "При включении приложение раз в пол минуты читает календарь и добавляет будущие события (на 30 дней вперёд) в список напоминаний.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+            Spacer(modifier = Modifier.height(24.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,

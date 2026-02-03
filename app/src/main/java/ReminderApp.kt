@@ -13,6 +13,7 @@ class ReminderApp : android.app.Application() {
     override fun onCreate() {
         super.onCreate()
         instance = this
+        ReminderPreferences.applyThemeMode(this)
         rescheduleAllFutureReminders()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             registerPhoneAccount()
