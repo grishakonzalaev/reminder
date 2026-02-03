@@ -325,7 +325,7 @@ fun ReminderScreen(viewModel: ReminderViewModel = viewModel()) {
 @Composable
 fun SettingsScreen(onBack: () -> Unit) {
     val ctx = LocalContext.current
-    val engines = remember { TtsPreferences.getAvailableEngines(ctx) }
+    val engines: List<Pair<String, String?>> = remember { TtsPreferences.getAvailableEngines(ctx) }
     var selectedEngine by remember { mutableStateOf<String?>(TtsPreferences.getSelectedEnginePackage(ctx)) }
     var delaySeconds by remember { mutableStateOf(TtsPreferences.getSpeakDelaySeconds(ctx).toString()) }
     var speechRate by remember { mutableStateOf(TtsPreferences.getSpeechRate(ctx)) }
@@ -349,8 +349,8 @@ fun SettingsScreen(onBack: () -> Unit) {
         }
     }
 
-    val currentTtsLabel = remember(selectedEngine) {
-        engines.find { (_, pkg) -> pkg == selectedEngine }?.first ?: "По умолчанию"
+    val currentTtsLabel: String = remember(selectedEngine) {
+        engines.find { (_: String, pkg: String?) -> pkg == selectedEngine }?.first ?: "По умолчанию"
     }
 
     Scaffold(
