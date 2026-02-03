@@ -159,7 +159,7 @@ fun ReminderScreen(viewModel: ReminderViewModel = viewModel()) {
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    "Напоминалка 1.3",
+                    "Напоминалка ${BuildConfig.VERSION_NAME}",
                     style = MaterialTheme.typography.titleLarge
                 )
                 if (!selectionMode) {
