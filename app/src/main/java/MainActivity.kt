@@ -340,7 +340,7 @@ fun SettingsScreen(onBack: () -> Unit) {
     var showReadCalendarDialog by remember { mutableStateOf(false) }
     var autoDeletePast by remember { mutableStateOf(ReminderPreferences.getAutoDeletePast(ctx)) }
     var useCallApi by remember { mutableStateOf(TtsPreferences.getUseCallApi(ctx)) }
-    val availableCalendars = remember { CalendarHelper.getAvailableCalendars(ctx) }
+    val availableCalendars: List<Pair<Long, String>> = remember { CalendarHelper.getAvailableCalendars(ctx) }
 
     DisposableEffect(Unit) {
         onDispose {
