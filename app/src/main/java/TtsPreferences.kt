@@ -10,7 +10,9 @@ object TtsPreferences {
     private const val KEY_ENGINE = "engine_package"
     private const val KEY_SPEAK_DELAY_SECONDS = "speak_delay_seconds"
     private const val KEY_SPEECH_RATE = "speech_rate"
+    private const val KEY_USE_CALL_API = "use_call_api"
     const val DEFAULT_SPEAK_DELAY_SECONDS = 5
+    const val DEFAULT_USE_CALL_API = true
     const val DEFAULT_SPEECH_RATE = 1f
     const val MIN_SPEECH_RATE = 0.5f
     const val MAX_SPEECH_RATE = 2f
@@ -35,6 +37,15 @@ object TtsPreferences {
     fun setSpeechRate(context: Context, rate: Float) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
             .putFloat(KEY_SPEECH_RATE, rate.coerceIn(MIN_SPEECH_RATE, MAX_SPEECH_RATE)).apply()
+    }
+
+    /** Включено: напоминание доставляется через API звонков (Telecom), TTS в разговорный динамик. */
+    fun getUseCallApi(context: Context): Boolean {
+        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_USE_CALL_API, DEFAULT_USE_CALL_API)
+    }
+
+    fun setUseCallApi(context: Context, use: Boolean) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(KEY_USE_CALL_API, use).apply()
     }
 
     fun getSelectedEnginePackage(context: Context): String? {

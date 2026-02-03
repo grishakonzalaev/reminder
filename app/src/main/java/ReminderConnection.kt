@@ -1,21 +1,26 @@
 package com.example.reminder
 
-import android.content.Intent
-import android.net.Uri
+import android.media.AudioManager
 import android.os.Build
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.speech.tts.TextToSpeech
 import android.telecom.Connection
-import android.telecom.ConnectionRequest
-import android.telecom.ConnectionService
-import android.telecom.PhoneAccountHandle
-import android.telecom.TelecomManager
 import androidx.annotation.RequiresApi
+import java.util.Locale
 
 /**
  * Представляет «звонок» напоминания в системе Telecom.
- * Позволяет гарнитуре воспринимать напоминание как звонок и отвечать кнопкой.
+ * При ответе остаётся стандартный экран звонка Android, TTS воспроизводится как звук звонка (разговорный динамик).
  */
 @RequiresApi(Build.VERSION_CODES.M)
 class ReminderConnection : Connection() {
+
+    private var tts: TextToSpeech? = null
+    private var previousAudioMode = -1
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var delayedSpeakRunnable: Runnable? = null
 
     override fun onAnswer() {
         setActive()
@@ -25,26 +30,93 @@ class ReminderConnection : Connection() {
             else -> null
         } ?: ReminderConnectionService.lastRequestExtras
         val msg = extras?.getString(ReminderReceiver.EXTRA_MSG) ?: "Пора!"
-        val id = extras?.getLong(ReminderReceiver.EXTRA_ID, -1L) ?: -1L
-        val intent = Intent(ctx, CallActivity::class.java).apply {
-            putExtra(CallActivity.EXTRA_MSG, msg)
-            putExtra(CallActivity.EXTRA_ID, id)
-            putExtra(CallActivity.EXTRA_ANSWERED_BY_HEADSET, true)
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        val delayMs = (TtsPreferences.getSpeakDelaySeconds(ctx).coerceIn(TtsPreferences.MIN_SPEAK_DELAY, TtsPreferences.MAX_SPEAK_DELAY) * 1000L)
+        val engine = TtsPreferences.getSelectedEnginePackage(ctx)
+
+        delayedSpeakRunnable = Runnable {
+            delayedSpeakRunnable = null
+            if (getState() != Connection.STATE_DISCONNECTED) {
+                startTtsAsCall(ctx, msg, engine)
+            }
         }
-        ctx.startActivity(intent)
+        mainHandler.postDelayed(delayedSpeakRunnable!!, delayMs)
+    }
+
+    private fun startTtsAsCall(ctx: android.content.Context, message: String, engine: String?) {
+        val am = ctx.getSystemService(android.content.Context.AUDIO_SERVICE) as AudioManager
+        previousAudioMode = am.mode
+        am.mode = AudioManager.MODE_IN_COMMUNICATION
+        am.isSpeakerphoneOn = false
+
+        val connection = this
+        val initListener = TextToSpeech.OnInitListener { status: Int ->
+            if (status == TextToSpeech.SUCCESS) {
+                val ttsRef = tts ?: return@OnInitListener
+                ttsRef.setSpeechRate(TtsPreferences.getSpeechRate(ctx))
+                ttsRef.language = Locale.getDefault()
+                ttsRef.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
+                    override fun onStart(utteranceId: String?) {}
+                    override fun onDone(utteranceId: String?) {
+                        mainHandler.post {
+                            connection.finishCallAndTts(am)
+                        }
+                    }
+                    override fun onError(utteranceId: String?) {
+                        mainHandler.post {
+                            connection.finishCallAndTts(am)
+                        }
+                    }
+                })
+                val params = Bundle().apply {
+                    putString(TextToSpeech.Engine.KEY_PARAM_STREAM, AudioManager.STREAM_VOICE_CALL.toString())
+                }
+                ttsRef.speak(message, TextToSpeech.QUEUE_FLUSH, params, "reminder_done")
+            } else {
+                mainHandler.post {
+                    connection.finishCallAndTts(am)
+                }
+            }
+        }
+        tts = if (engine != null) {
+            TextToSpeech(ctx, initListener, engine)
+        } else {
+            TextToSpeech(ctx, initListener)
+        }
+    }
+
+    private fun finishCallAndTts(am: AudioManager) {
+        if (previousAudioMode >= 0) {
+            try {
+                am.mode = previousAudioMode
+            } catch (_: Exception) { }
+            previousAudioMode = -1
+        }
+        tts?.shutdown()
+        tts = null
         destroy()
     }
 
     override fun onReject() {
+        delayedSpeakRunnable?.let { mainHandler.removeCallbacks(it) }
+        delayedSpeakRunnable = null
         destroy()
     }
 
     override fun onAbort() {
+        delayedSpeakRunnable?.let { mainHandler.removeCallbacks(it) }
+        delayedSpeakRunnable = null
+        tts?.stop()
+        tts?.shutdown()
+        tts = null
         destroy()
     }
 
     override fun onDisconnect() {
+        delayedSpeakRunnable?.let { mainHandler.removeCallbacks(it) }
+        delayedSpeakRunnable = null
+        tts?.stop()
+        tts?.shutdown()
+        tts = null
         destroy()
     }
 }

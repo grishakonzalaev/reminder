@@ -1,5 +1,6 @@
 package com.example.reminder
 
+import android.media.AudioManager
 import android.media.Ringtone
 import android.media.RingtoneManager
 import android.os.Build
@@ -22,6 +23,7 @@ class CallActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private var pendingSpeak = false
     /** true после вызова onInit — только тогда можно вызывать speak() */
     private var ttsReady = false
+    private var previousAudioMode = -1
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -110,7 +112,29 @@ class CallActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         val text = message ?: return
         tts.language = Locale.getDefault()
         tts.setSpeechRate(TtsPreferences.getSpeechRate(this))
-        tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, UTTERANCE_DONE)
+        val useEarpiece = TtsPreferences.getUseCallApi(this)
+        val params = if (useEarpiece) {
+            val am = getSystemService(AUDIO_SERVICE) as AudioManager
+            previousAudioMode = am.mode
+            am.mode = AudioManager.MODE_IN_COMMUNICATION
+            am.isSpeakerphoneOn = false
+            Bundle().apply {
+                putString(TextToSpeech.Engine.KEY_PARAM_STREAM, AudioManager.STREAM_VOICE_CALL.toString())
+            }
+        } else {
+            null
+        }
+        tts.speak(text, TextToSpeech.QUEUE_FLUSH, params, UTTERANCE_DONE)
+    }
+
+    private fun restoreAudioMode() {
+        if (previousAudioMode >= 0) {
+            try {
+                val am = getSystemService(AUDIO_SERVICE) as AudioManager
+                am.mode = previousAudioMode
+            } catch (_: Exception) { }
+            previousAudioMode = -1
+        }
     }
 
     override fun onInit(status: Int) {
@@ -119,10 +143,16 @@ class CallActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             tts.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
                 override fun onStart(utteranceId: String?) {}
                 override fun onDone(utteranceId: String?) {
-                    if (utteranceId == UTTERANCE_DONE) runOnUiThread { finish() }
+                    runOnUiThread {
+                        restoreAudioMode()
+                        if (utteranceId == UTTERANCE_DONE) finish()
+                    }
                 }
                 override fun onError(utteranceId: String?) {
-                    runOnUiThread { finish() }
+                    runOnUiThread {
+                        restoreAudioMode()
+                        finish()
+                    }
                 }
             })
             if (pendingSpeak) {
@@ -133,6 +163,7 @@ class CallActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     }
 
     override fun onDestroy() {
+        restoreAudioMode()
         if (::tts.isInitialized) tts.shutdown()
         ringtone?.stop()
         super.onDestroy()

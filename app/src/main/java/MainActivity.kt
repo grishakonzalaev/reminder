@@ -303,6 +303,7 @@ fun SettingsScreen(onBack: () -> Unit) {
     var showTtsList by remember { mutableStateOf(false) }
     var testTts by remember { mutableStateOf<TextToSpeech?>(null) }
     var autoDeletePast by remember { mutableStateOf(ReminderPreferences.getAutoDeletePast(ctx)) }
+    var useCallApi by remember { mutableStateOf(TtsPreferences.getUseCallApi(ctx)) }
 
     DisposableEffect(Unit) {
         onDispose {
@@ -353,6 +354,27 @@ fun SettingsScreen(onBack: () -> Unit) {
                     }
                 )
             }
+            Spacer(modifier = Modifier.height(24.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Использовать API звонков", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                Switch(
+                    checked = useCallApi,
+                    onCheckedChange = {
+                        useCallApi = it
+                        TtsPreferences.setUseCallApi(ctx, it)
+                    }
+                )
+            }
+            Text(
+                "Включено: напоминание приходит как звонок (интерфейс звонков), TTS — в разговорный динамик. Выключено: полноэкранное уведомление, TTS — в основной динамик.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp)
+            )
             Spacer(modifier = Modifier.height(24.dp))
             Text("Синтезатор речи", style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(8.dp))

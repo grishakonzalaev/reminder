@@ -16,9 +16,10 @@ class ReminderReceiver : BroadcastReceiver() {
         try {
             val id = intent.getLongExtra(EXTRA_ID, -1L)
             val message = intent.getStringExtra(EXTRA_MSG) ?: "Пора!"
+            val useCallApi = TtsPreferences.getUseCallApi(context)
 
-            // Сначала пробуем Telecom: гарнитура воспринимает как звонок, кнопка ответа работает
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            // При включённой опции «Использовать API звонков» — доставляем через Telecom (интерфейс звонков, звук через звонок)
+            if (useCallApi && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 val app = context.applicationContext as? ReminderApp
                 val handle = app?.phoneAccountHandle
                 if (handle != null) {
@@ -29,12 +30,12 @@ class ReminderReceiver : BroadcastReceiver() {
                     }
                     try {
                         telecomManager.addNewIncomingCall(handle, extras)
-                        return // Успех — система покажет входящий звонок, гарнитура сработает
+                        return // Успех — система покажет входящий звонок, TTS пойдёт через звонок
                     } catch (_: Exception) { }
                 }
             }
 
-            // Fallback: уведомление и fullScreenIntent (как раньше)
+            // Fallback: уведомление и fullScreenIntent (без API звонков)
             val callIntent = Intent(context, CallActivity::class.java).apply {
                 putExtra(CallActivity.EXTRA_MSG, message)
                 putExtra(CallActivity.EXTRA_ID, id)
