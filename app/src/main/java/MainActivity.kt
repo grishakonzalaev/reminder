@@ -340,7 +340,7 @@ fun SettingsScreen(onBack: () -> Unit) {
     var showReadCalendarDialog by remember { mutableStateOf(false) }
     var autoDeletePast by remember { mutableStateOf(ReminderPreferences.getAutoDeletePast(ctx)) }
     var useCallApi by remember { mutableStateOf(TtsPreferences.getUseCallApi(ctx)) }
-    val availableCalendars: List<Pair<Long, String>> = remember { CalendarHelper.getAvailableCalendars(ctx) }
+    val availableCalendars: List<Pair<Long, String>> = remember { com.example.reminder.CalendarHelper.getAvailableCalendars(ctx) }
 
     DisposableEffect(Unit) {
         onDispose {
@@ -441,8 +441,8 @@ fun SettingsScreen(onBack: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 4.dp)
             )
-            val writeCalendarLabel = if (writeCalendarId == 0L) "Первый доступный" else availableCalendars.find { it.first == writeCalendarId }?.second ?: "Календарь $writeCalendarId"
-            val readCalendarLabel = if (readCalendarId == 0L) "Все календари" else availableCalendars.find { it.first == readCalendarId }?.second ?: "Календарь $readCalendarId"
+            val writeCalendarLabel = if (writeCalendarId == 0L) "Первый доступный" else availableCalendars.find { (id, _) -> id == writeCalendarId }?.second ?: "Календарь $writeCalendarId"
+            val readCalendarLabel = if (readCalendarId == 0L) "Все календари" else availableCalendars.find { (id, _) -> id == readCalendarId }?.second ?: "Календарь $readCalendarId"
             Spacer(modifier = Modifier.height(16.dp))
             Text("Календарь для записи напоминаний", style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(8.dp))
@@ -480,7 +480,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                             ) {
                                 Text("Первый доступный")
                             }
-                            availableCalendars.forEach { (id, name) ->
+                            for ((id, name) in availableCalendars) {
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -523,7 +523,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                             ) {
                                 Text("Все календари")
                             }
-                            availableCalendars.forEach { (id, name) ->
+                            for ((id, name) in availableCalendars) {
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
