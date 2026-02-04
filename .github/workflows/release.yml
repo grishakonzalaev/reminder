@@ -73,6 +73,31 @@ jobs:
         id: version
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
+      - name: Prepare release artifact names
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          mkdir -p dist
+          APK_SRC="$(ls -1 app/build/outputs/apk/release/*.apk 2>/dev/null | head -n 1 || true)"
+          AAB_SRC="$(ls -1 app/build/outputs/bundle/release/*.aab 2>/dev/null | head -n 1 || true)"
+
+          if [ -n "$APK_SRC" ]; then
+            cp "$APK_SRC" "dist/reminder${VERSION}.apk"
+            echo "Prepared dist/reminder${VERSION}.apk from $APK_SRC"
+          else
+            echo "No APK found to prepare."
+          fi
+
+          if [ -n "$AAB_SRC" ]; then
+            cp "$AAB_SRC" "dist/reminder${VERSION}.aab"
+            echo "Prepared dist/reminder${VERSION}.aab from $AAB_SRC"
+          else
+            echo "No AAB found to prepare."
+          fi
+
+          echo "dist contents:"
+          ls -la dist || true
+
       - name: Create Release and upload artifacts
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -85,7 +110,7 @@ jobs:
               --repo "$GITHUB_REPOSITORY"
           fi
           UPLOADED=0
-          for f in app/build/outputs/apk/release/*.apk app/build/outputs/bundle/release/*.aab; do
+          for f in dist/*.apk dist/*.aab; do
             if [ -f "$f" ]; then
               echo "Uploading $f..."
               gh release upload "$VERSION" "$f" --repo "$GITHUB_REPOSITORY" --clobber
