@@ -112,11 +112,6 @@ class MainActivity : ComponentActivity() {
                 perms.add(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.SCHEDULE_EXACT_ALARM) != PackageManager.PERMISSION_GRANTED) {
-                perms.add(Manifest.permission.SCHEDULE_EXACT_ALARM)
-            }
-        }
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CALENDAR) != PackageManager.PERMISSION_GRANTED) {
             perms.add(Manifest.permission.READ_CALENDAR)
         }
@@ -124,6 +119,16 @@ class MainActivity : ComponentActivity() {
             perms.add(Manifest.permission.WRITE_CALENDAR)
         }
         if (perms.isNotEmpty()) requestPermission.launch(perms.toTypedArray())
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val alarmManager = getSystemService(android.app.AlarmManager::class.java)
+            if (!alarmManager.canScheduleExactAlarms()) {
+                val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
+                    data = Uri.parse("package:$packageName")
+                }
+                startActivity(intent)
+            }
+        }
     }
 }
 
