@@ -11,7 +11,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.example.reminder.R
 
 @Composable
 fun EmptyReminderState() {
@@ -23,19 +25,19 @@ fun EmptyReminderState() {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            "Нет напоминаний. Нажмите «Добавить».",
+            stringResource(R.string.empty_state_title),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(modifier = Modifier.height(20.dp))
         Text(
-            "Если при срабатывании показывается только уведомление — нажмите «Уведомления» и разрешите полноэкранные уведомления.",
+            stringResource(R.string.empty_state_notifications),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.outline
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            "Чтобы гарнитура воспринимала напоминания как звонок — нажмите «Звонки» и включите «Напоминалка».",
+            stringResource(R.string.empty_state_calls),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.outline
         )

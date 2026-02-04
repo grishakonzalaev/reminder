@@ -11,7 +11,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.reminder.R
 import com.example.reminder.data.model.Reminder
 import com.example.reminder.ui.components.ActionToolbar
 import com.example.reminder.ui.components.AppTopBar
@@ -121,8 +123,8 @@ fun ReminderScreen(viewModel: ReminderViewModel = viewModel()) {
 
     reminderToDelete?.let { reminder ->
         ConfirmationDialog(
-            title = "Удалить напоминание?",
-            message = "\"${reminder.message}\" будет удалено безвозвратно.",
+            title = stringResource(R.string.dialog_delete_reminder),
+            message = stringResource(R.string.dialog_delete_reminder_message, reminder.message),
             onDismiss = { reminderToDelete = null },
             onConfirm = {
                 viewModel.deleteReminder(reminder)
@@ -134,8 +136,8 @@ fun ReminderScreen(viewModel: ReminderViewModel = viewModel()) {
     if (showBulkDeleteConfirm) {
         val toDelete = reminders.filter { it.id in selectedIds }
         ConfirmationDialog(
-            title = "Удалить напоминания?",
-            message = "Будет удалено ${toDelete.size} ${if (toDelete.size == 1) "напоминание" else "напоминаний"} безвозвратно.",
+            title = stringResource(R.string.dialog_delete_reminders),
+            message = stringResource(R.string.dialog_delete_reminders_message, toDelete.size),
             onDismiss = { showBulkDeleteConfirm = false },
             onConfirm = {
                 viewModel.deleteReminders(toDelete)

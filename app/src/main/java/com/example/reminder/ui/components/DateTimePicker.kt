@@ -31,10 +31,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.example.reminder.R
 import androidx.core.view.ViewCompat
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
 import java.text.DateFormatSymbols
@@ -206,13 +208,13 @@ fun DateTimePickerSliders(
                 shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
                 onClick = { pickerMode = DateTimePickerMode.SLIDER },
                 selected = pickerMode == DateTimePickerMode.SLIDER,
-                label = { Text("Slider") }
+                label = { Text(stringResource(R.string.picker_mode_slider)) }
             )
             SegmentedButton(
                 shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
                 onClick = { pickerMode = DateTimePickerMode.TEXT },
                 selected = pickerMode == DateTimePickerMode.TEXT,
-                label = { Text("Text") }
+                label = { Text(stringResource(R.string.picker_mode_text)) }
             )
         }
 
@@ -277,6 +279,12 @@ private fun SliderDateTimePicker(
     onHourChange: (Float) -> Unit,
     onMinuteChange: (Float) -> Unit
 ) {
+    val dayRole = stringResource(R.string.picker_day)
+    val monthRole = stringResource(R.string.picker_month)
+    val yearRole = stringResource(R.string.picker_year)
+    val hourRole = stringResource(R.string.picker_hour)
+    val minuteRole = stringResource(R.string.picker_minute)
+
     Column {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -291,7 +299,7 @@ private fun SliderDateTimePicker(
                 onValueChange = onDayChange,
                 valueRange = 1f..31f,
                 label = day.toInt().toString().padStart(2, '0'),
-                roleDescription = "day",
+                roleDescription = dayRole,
                 modifier = Modifier.weight(1f)
             )
         }
@@ -311,7 +319,7 @@ private fun SliderDateTimePicker(
                 onValueChange = onMonthChange,
                 valueRange = 0f..11f,
                 label = monthNamesFull[month.toInt()],
-                roleDescription = "month",
+                roleDescription = monthRole,
                 modifier = Modifier.weight(1f)
             )
         }
@@ -331,7 +339,7 @@ private fun SliderDateTimePicker(
                 onValueChange = onYearChange,
                 valueRange = Calendar.getInstance().get(Calendar.YEAR).toFloat()..(Calendar.getInstance().get(Calendar.YEAR) + 10).toFloat(),
                 label = year.toInt().toString(),
-                roleDescription = "year",
+                roleDescription = yearRole,
                 modifier = Modifier.weight(1f)
             )
         }
@@ -351,7 +359,7 @@ private fun SliderDateTimePicker(
                 onValueChange = onHourChange,
                 valueRange = 0f..23f,
                 label = hour.toInt().toString().padStart(2, '0'),
-                roleDescription = "hour",
+                roleDescription = hourRole,
                 modifier = Modifier.weight(1f)
             )
         }
@@ -371,7 +379,7 @@ private fun SliderDateTimePicker(
                 onValueChange = onMinuteChange,
                 valueRange = 0f..59f,
                 label = minute.toInt().toString().padStart(2, '0'),
-                roleDescription = "minute",
+                roleDescription = minuteRole,
                 modifier = Modifier.weight(1f)
             )
         }
@@ -407,7 +415,7 @@ private fun TextDateTimePicker(
                     new.toIntOrNull()?.coerceIn(1, 31)?.let(onDayChange)
                 }
             },
-            label = { Text("Day") },
+            label = { Text(stringResource(R.string.picker_day)) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
@@ -419,7 +427,7 @@ private fun TextDateTimePicker(
             OutlinedTextField(
                 value = monthNamesFull[month],
                 onValueChange = {},
-                label = { Text("Month") },
+                label = { Text(stringResource(R.string.picker_month)) },
                 readOnly = true,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -451,7 +459,7 @@ private fun TextDateTimePicker(
                     new.toIntOrNull()?.coerceIn(Calendar.getInstance().get(Calendar.YEAR), Calendar.getInstance().get(Calendar.YEAR) + 10)?.let(onYearChange)
                 }
             },
-            label = { Text("Year") },
+            label = { Text(stringResource(R.string.picker_year)) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
@@ -471,7 +479,7 @@ private fun TextDateTimePicker(
                         new.toIntOrNull()?.coerceIn(0, 23)?.let(onHourChange)
                     }
                 },
-                label = { Text("Hour") },
+                label = { Text(stringResource(R.string.picker_hour)) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 singleLine = true,
                 modifier = Modifier.weight(1f)
@@ -485,7 +493,7 @@ private fun TextDateTimePicker(
                         new.toIntOrNull()?.coerceIn(0, 59)?.let(onMinuteChange)
                     }
                 },
-                label = { Text("Minute") },
+                label = { Text(stringResource(R.string.picker_minute)) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 singleLine = true,
                 modifier = Modifier.weight(1f)

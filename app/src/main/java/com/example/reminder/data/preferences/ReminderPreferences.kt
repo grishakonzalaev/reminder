@@ -1,12 +1,17 @@
 package com.example.reminder.data.preferences
 
+import android.app.Activity
 import android.content.Context
+import android.content.res.Configuration
+import android.os.Build
 import androidx.appcompat.app.AppCompatDelegate
+import java.util.Locale
 
 object ReminderPreferences {
     private const val PREFS = "reminder_prefs"
     private const val KEY_AUTO_DELETE_PAST = "auto_delete_past"
     private const val KEY_THEME_MODE = "theme_mode"
+    private const val KEY_LANGUAGE = "language"
     private const val KEY_ADD_TO_CALENDAR = "add_to_calendar"
     private const val KEY_SYNC_FROM_CALENDAR = "sync_from_calendar"
     private const val KEY_WRITE_CALENDAR_ID = "write_calendar_id"
@@ -19,6 +24,10 @@ object ReminderPreferences {
     const val THEME_LIGHT = "light"
     const val THEME_DARK = "dark"
     const val THEME_SYSTEM = "system"
+
+    const val LANG_SYSTEM = "system"
+    const val LANG_ENGLISH = "en"
+    const val LANG_RUSSIAN = "ru"
 
     private fun prefs(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
@@ -42,6 +51,93 @@ object ReminderPreferences {
             else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
         }
         AppCompatDelegate.setDefaultNightMode(nightMode)
+    }
+
+    fun getLanguage(context: Context): String {
+        return prefs(context).getString(KEY_LANGUAGE, LANG_SYSTEM) ?: LANG_SYSTEM
+    }
+
+    fun setLanguage(context: Context, language: String) {
+        prefs(context).edit().putString(KEY_LANGUAGE, language).apply()
+    }
+
+    fun wrapContext(context: Context): Context {
+        val language = getLanguage(context)
+
+        val locale = when (language) {
+            LANG_ENGLISH -> Locale("en")
+            LANG_RUSSIAN -> Locale("ru")
+            else -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                context.resources.configuration.locales[0]
+            } else {
+                @Suppress("DEPRECATION")
+                context.resources.configuration.locale
+            }
+        }
+
+        Locale.setDefault(locale)
+
+        val config = Configuration(context.resources.configuration)
+        config.setLocale(locale)
+
+        return context.createConfigurationContext(config)
+    }
+
+    fun syncLanguageFromSystem(context: Context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val systemLocales = AppCompatDelegate.getApplicationLocales()
+            if (!systemLocales.isEmpty) {
+                val systemLanguage = systemLocales[0]?.language
+                val currentLanguage = getLanguage(context)
+
+                val expectedLanguage = when (systemLanguage) {
+                    "en" -> LANG_ENGLISH
+                    "ru" -> LANG_RUSSIAN
+                    else -> LANG_SYSTEM
+                }
+
+                if (currentLanguage != expectedLanguage) {
+                    setLanguage(context, expectedLanguage)
+                }
+            } else {
+                if (getLanguage(context) != LANG_SYSTEM) {
+                    setLanguage(context, LANG_SYSTEM)
+                }
+            }
+        }
+    }
+
+    fun applyLanguageForSystemSync(context: Context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val language = getLanguage(context)
+            if (language == LANG_SYSTEM) {
+                AppCompatDelegate.setApplicationLocales(androidx.core.os.LocaleListCompat.getEmptyLocaleList())
+            } else {
+                val locale = when (language) {
+                    LANG_ENGLISH -> Locale("en")
+                    LANG_RUSSIAN -> Locale("ru")
+                    else -> Locale.getDefault()
+                }
+                AppCompatDelegate.setApplicationLocales(androidx.core.os.LocaleListCompat.forLanguageTags(locale.toLanguageTag()))
+            }
+        }
+    }
+
+    fun applyLanguage(context: Context) {
+        val language = getLanguage(context)
+
+        val locale = when (language) {
+            LANG_ENGLISH -> Locale("en")
+            LANG_RUSSIAN -> Locale("ru")
+            else -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                context.resources.configuration.locales[0]
+            } else {
+                @Suppress("DEPRECATION")
+                context.resources.configuration.locale
+            }
+        }
+
+        Locale.setDefault(locale)
     }
 
     fun getAutoDeletePast(context: Context): Boolean {

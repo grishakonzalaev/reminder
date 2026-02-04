@@ -23,7 +23,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.example.reminder.R
 
 @Composable
 fun ActionToolbar(
@@ -49,28 +51,28 @@ fun ActionToolbar(
         ) {
             if (selectionMode) {
                 IconButton(onClick = onExitSelectionMode) {
-                    Icon(Icons.Default.Clear, contentDescription = "Отмена")
+                    Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.button_cancel))
                 }
                 Text(
-                    if (selectedCount == 0) "Выбрать" else "Выбрано: $selectedCount",
+                    if (selectedCount == 0) stringResource(R.string.button_select) else stringResource(R.string.selected_count, selectedCount),
                     style = MaterialTheme.typography.labelLarge,
                     modifier = Modifier.padding(horizontal = 4.dp)
                 )
                 TextButton(onClick = onToggleSelectAll) {
-                    Text(if (selectedCount == totalCount) "Снять все" else "Выбрать все")
+                    Text(if (selectedCount == totalCount) stringResource(R.string.button_deselect_all) else stringResource(R.string.button_select_all))
                 }
                 TextButton(
                     onClick = onDeleteSelected,
                     enabled = selectedCount > 0
                 ) {
                     Text(
-                        "Удалить",
+                        stringResource(R.string.button_delete),
                         color = if (selectedCount == 0) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error
                     )
                 }
             } else {
                 if (hasReminders) {
-                    TextButton(onClick = onEnterSelectionMode) { Text("Выбрать") }
+                    TextButton(onClick = onEnterSelectionMode) { Text(stringResource(R.string.button_select)) }
                 }
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                     TextButton(
@@ -83,9 +85,9 @@ fun ActionToolbar(
                                 })
                             }
                         }
-                    ) { Text("Звонки") }
+                    ) { Text(stringResource(R.string.button_calls)) }
                 }
-                TextButton(onClick = onOpenSettings) { Text("Настройки") }
+                TextButton(onClick = onOpenSettings) { Text(stringResource(R.string.button_settings)) }
                 TextButton(
                     onClick = {
                         val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -99,7 +101,7 @@ fun ActionToolbar(
                         }
                         context.startActivity(intent)
                     }
-                ) { Text("Уведомления") }
+                ) { Text(stringResource(R.string.button_notifications)) }
             }
         }
     }

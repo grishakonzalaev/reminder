@@ -17,8 +17,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.example.reminder.BuildConfig
+import com.example.reminder.R
 
 @Composable
 fun AppTopBar(
@@ -34,7 +36,7 @@ fun AppTopBar(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                "Напоминалка ${BuildConfig.VERSION_NAME}",
+                "${stringResource(R.string.app_name)} ${BuildConfig.VERSION_NAME}",
                 style = MaterialTheme.typography.titleLarge
             )
             if (!selectionMode) {
@@ -44,7 +46,7 @@ fun AppTopBar(
                 ) {
                     Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.size(8.dp))
-                    Text("Добавить")
+                    Text(stringResource(R.string.button_add))
                 }
             }
         }

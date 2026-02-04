@@ -19,7 +19,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.example.reminder.R
 import com.example.reminder.data.model.Reminder
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -70,11 +72,11 @@ fun ReminderItem(
             if (!selectionMode) {
                 onEdit?.let { edit ->
                     IconButton(onClick = edit) {
-                        Icon(Icons.Default.Edit, contentDescription = "Изменить")
+                        Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.content_description_edit))
                     }
                 }
                 IconButton(onClick = onDelete) {
-                    Icon(Icons.Default.Delete, contentDescription = "Удалить", tint = MaterialTheme.colorScheme.error)
+                    Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.content_description_delete), tint = MaterialTheme.colorScheme.error)
                 }
             }
         }

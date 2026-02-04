@@ -1,6 +1,7 @@
 package com.example.reminder.ui.activity
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -28,8 +29,14 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.RequestMultiplePermissions()
     ) { }
 
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(ReminderPreferences.wrapContext(newBase))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        ReminderPreferences.syncLanguageFromSystem(this)
+        ReminderPreferences.applyLanguage(this)
         ReminderPreferences.applyThemeMode(this)
         requestNeededPermissions()
         setContent {
