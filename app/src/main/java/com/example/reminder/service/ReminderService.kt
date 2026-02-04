@@ -1,4 +1,4 @@
-package com.example.reminder
+package com.example.reminder.service
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -10,6 +10,8 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import androidx.core.app.NotificationCompat
+import com.example.reminder.receiver.ReminderReceiver
+import com.example.reminder.ui.activity.CallActivity
 
 class ReminderService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null

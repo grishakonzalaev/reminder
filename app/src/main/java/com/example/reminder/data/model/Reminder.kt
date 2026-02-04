@@ -1,4 +1,4 @@
-package com.example.reminder
+package com.example.reminder.data.model
 
 data class Reminder(
     val id: Long,

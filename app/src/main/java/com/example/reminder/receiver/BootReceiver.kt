@@ -1,9 +1,12 @@
-package com.example.reminder
+package com.example.reminder.receiver
 
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import com.example.reminder.data.repository.ReminderRepository
+import com.example.reminder.scheduler.AlarmScheduler
+import com.example.reminder.scheduler.CalendarSyncScheduler
 
 /**
  * После перезагрузки устройства AlarmManager сбрасывает все будильники.

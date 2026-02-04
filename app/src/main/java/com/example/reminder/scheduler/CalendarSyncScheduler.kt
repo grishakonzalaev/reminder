@@ -1,10 +1,12 @@
-package com.example.reminder
+package com.example.reminder.scheduler
 
 import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import com.example.reminder.data.preferences.ReminderPreferences
+import com.example.reminder.receiver.CalendarSyncReceiver
 
 /** Запуск/остановка фоновой синхронизации календаря каждые 30 секунд (чтение событий → напоминания). */
 object CalendarSyncScheduler {

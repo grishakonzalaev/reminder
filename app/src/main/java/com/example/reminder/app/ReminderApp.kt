@@ -1,4 +1,4 @@
-package com.example.reminder
+package com.example.reminder.app
 
 import android.content.ComponentName
 import android.content.Context
@@ -7,6 +7,12 @@ import android.telecom.PhoneAccount
 import android.telecom.PhoneAccountHandle
 import android.telecom.TelecomManager
 import androidx.annotation.RequiresApi
+import com.example.reminder.R
+import com.example.reminder.data.preferences.ReminderPreferences
+import com.example.reminder.data.repository.ReminderRepository
+import com.example.reminder.scheduler.AlarmScheduler
+import com.example.reminder.scheduler.CalendarSyncScheduler
+import com.example.reminder.service.ReminderConnectionService
 
 class ReminderApp : android.app.Application() {
 

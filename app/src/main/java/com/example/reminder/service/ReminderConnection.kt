@@ -1,4 +1,4 @@
-package com.example.reminder
+package com.example.reminder.service
 
 import android.media.AudioManager
 import android.os.Build
@@ -8,6 +8,10 @@ import android.os.Looper
 import android.speech.tts.TextToSpeech
 import android.telecom.Connection
 import androidx.annotation.RequiresApi
+import com.example.reminder.app.ReminderApp
+import com.example.reminder.data.preferences.TtsPreferences
+import com.example.reminder.helper.SnoozeHelper
+import com.example.reminder.receiver.ReminderReceiver
 import java.util.Locale
 
 /**

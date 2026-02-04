@@ -1,4 +1,4 @@
-package com.example.reminder
+package com.example.reminder.data.preferences
 
 import android.content.Context
 import androidx.appcompat.app.AppCompatDelegate

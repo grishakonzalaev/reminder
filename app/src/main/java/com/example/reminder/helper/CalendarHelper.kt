@@ -1,4 +1,4 @@
-package com.example.reminder
+package com.example.reminder.helper
 
 import android.content.ContentUris
 import android.content.ContentValues

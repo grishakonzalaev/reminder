@@ -1,4 +1,4 @@
-package com.example.reminder
+package com.example.reminder.ui.activity
 
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
@@ -77,6 +77,14 @@ import java.util.Calendar
 import java.util.Date
 import android.speech.tts.TextToSpeech
 import java.util.Locale
+import com.example.reminder.BuildConfig
+import com.example.reminder.R
+import com.example.reminder.data.model.Reminder
+import com.example.reminder.data.preferences.ReminderPreferences
+import com.example.reminder.data.preferences.TtsPreferences
+import com.example.reminder.helper.CalendarHelper
+import com.example.reminder.scheduler.CalendarSyncScheduler
+import com.example.reminder.ui.viewmodel.ReminderViewModel
 
 class MainActivity : ComponentActivity() {
     private val requestPermission = registerForActivityResult(

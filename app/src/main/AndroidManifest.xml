@@ -20,13 +20,13 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
     <application
-        android:name=".ReminderApp"
+        android:name=".app.ReminderApp"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:theme="@style/Theme.Напоминалка">
 
-        <activity android:name=".MainActivity" android:exported="true">
+        <activity android:name=".ui.activity.MainActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -34,24 +34,24 @@
         </activity>
 
         <activity
-            android:name=".CallActivity"
+            android:name=".ui.activity.CallActivity"
             android:showOnLockScreen="true"
             android:turnScreenOn="true"
             android:launchMode="singleInstance"
             android:excludeFromRecents="true"
             android:theme="@style/Theme.Call" />
 
-        <receiver android:name=".ReminderReceiver" android:exported="false" />
-        <receiver android:name=".CalendarSyncReceiver" android:exported="false" />
+        <receiver android:name=".receiver.ReminderReceiver" android:exported="false" />
+        <receiver android:name=".receiver.CalendarSyncReceiver" android:exported="false" />
 
-        <receiver android:name=".BootReceiver" android:exported="true">
+        <receiver android:name=".receiver.BootReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
 
         <service
-            android:name=".ReminderConnectionService"
+            android:name=".service.ReminderConnectionService"
             android:exported="true"
             android:permission="android.permission.BIND_TELECOM_CONNECTION_SERVICE">
             <intent-filter>
@@ -60,7 +60,7 @@
         </service>
 
         <service
-            android:name=".ReminderService"
+            android:name=".service.ReminderService"
             android:exported="false"
             android:foregroundServiceType="specialUse">
             <meta-data

@@ -1,8 +1,13 @@
-package com.example.reminder
+package com.example.reminder.receiver
 
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import com.example.reminder.data.preferences.ReminderPreferences
+import com.example.reminder.data.repository.ReminderRepository
+import com.example.reminder.helper.CalendarHelper
+import com.example.reminder.scheduler.AlarmScheduler
+import com.example.reminder.scheduler.CalendarSyncScheduler
 
 /**
  * По срабатыванию будильника выполняет синхронизацию «календарь → напоминания»

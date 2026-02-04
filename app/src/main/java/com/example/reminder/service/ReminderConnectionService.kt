@@ -1,4 +1,4 @@
-package com.example.reminder
+package com.example.reminder.service
 
 import android.net.Uri
 import android.os.Build

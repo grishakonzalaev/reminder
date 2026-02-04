@@ -1,4 +1,4 @@
-package com.example.reminder
+package com.example.reminder.receiver
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -10,6 +10,9 @@ import android.os.Build
 import android.os.Bundle
 import android.telecom.TelecomManager
 import androidx.core.app.NotificationCompat
+import com.example.reminder.app.ReminderApp
+import com.example.reminder.data.preferences.TtsPreferences
+import com.example.reminder.ui.activity.CallActivity
 
 class ReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {

@@ -1,10 +1,11 @@
-package com.example.reminder
+package com.example.reminder.scheduler
 
 import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import com.example.reminder.receiver.ReminderReceiver
 
 /**
  * Планирует повторное срабатывание напоминания через заданное время (отложение при отклонении звонка).

@@ -1,4 +1,4 @@
-package com.example.reminder
+package com.example.reminder.ui.activity
 
 import android.media.AudioManager
 import android.media.Ringtone
@@ -15,6 +15,9 @@ import android.widget.Button
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import java.util.Locale
+import com.example.reminder.R
+import com.example.reminder.data.preferences.TtsPreferences
+import com.example.reminder.helper.SnoozeHelper
 
 class CallActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private lateinit var tts: TextToSpeech
