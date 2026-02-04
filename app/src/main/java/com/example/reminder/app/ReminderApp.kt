@@ -13,6 +13,9 @@ import com.example.reminder.data.repository.ReminderRepository
 import com.example.reminder.scheduler.AlarmScheduler
 import com.example.reminder.scheduler.CalendarSyncScheduler
 import com.example.reminder.service.ReminderConnectionService
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class ReminderApp : android.app.Application() {
 
@@ -32,9 +35,11 @@ class ReminderApp : android.app.Application() {
         val repo = ReminderRepository(this)
         val scheduler = AlarmScheduler(this)
         val now = System.currentTimeMillis()
-        repo.getAll()
-            .filter { it.timeMillis > now }
-            .forEach { scheduler.schedule(it) }
+        CoroutineScope(Dispatchers.IO).launch {
+            repo.getAll()
+                .filter { it.timeMillis > now }
+                .forEach { scheduler.schedule(it) }
+        }
     }
 
     @RequiresApi(Build.VERSION_CODES.M)

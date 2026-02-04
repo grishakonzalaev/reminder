@@ -1,149 +1,165 @@
 package com.example.reminder.data.repository
 
 import android.content.Context
+import com.example.reminder.data.dao.CalendarEventMappingDao
+import com.example.reminder.data.dao.ImportedCalendarInstanceDao
+import com.example.reminder.data.dao.ReminderDao
+import com.example.reminder.data.database.ReminderDatabase
+import com.example.reminder.data.model.CalendarEventMapping
+import com.example.reminder.data.model.ImportedCalendarInstance
 import com.example.reminder.data.model.Reminder
 import com.example.reminder.data.preferences.ReminderPreferences
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
-private const val PREFS_NAME = "reminders"
-private const val KEY_LIST = "list"
-private const val KEY_CALENDAR_EVENT_IDS = "calendar_event_ids"
-private const val KEY_IMPORTED_CALENDAR_INSTANCES = "imported_calendar_instances"
+class ReminderRepository(private val context: Context) {
 
-class ReminderRepository(context: Context) {
-    private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-    private val _reminders = MutableStateFlow(loadFromPrefs())
-    val reminders: StateFlow<List<Reminder>> = _reminders.asStateFlow()
+    private val database = ReminderDatabase.getDatabase(context)
+    private val reminderDao: ReminderDao = database.reminderDao()
+    private val calendarMappingDao: CalendarEventMappingDao = database.calendarEventMappingDao()
+    private val importedInstanceDao: ImportedCalendarInstanceDao = database.importedCalendarInstanceDao()
 
-    private fun loadFromPrefs(): List<Reminder> {
-        val json = prefs.getString(KEY_LIST, "[]") ?: return emptyList()
-        return try {
-            val arr = JSONArray(json)
-            List(arr.length()) { i ->
-                val o = arr.getJSONObject(i)
-                val message = o.optString("message", o.optString("title", ""))
-                Reminder(
-                    id = o.getLong("id"),
-                    message = message,
-                    timeMillis = o.getLong("timeMillis")
-                )
-            }.sortedBy { it.timeMillis }
-        } catch (_: Exception) {
-            emptyList()
-        }
+    val reminders: Flow<List<Reminder>> = reminderDao.getAllFlow()
+
+    init {
+        migrateFromSharedPreferences()
     }
 
-    private fun saveToPrefs(list: List<Reminder>) {
-        val arr = JSONArray()
-        list.forEach { r ->
-            arr.put(JSONObject().apply {
-                put("id", r.id)
-                put("message", r.message)
-                put("timeMillis", r.timeMillis)
-            })
-        }
-        prefs.edit().putString(KEY_LIST, arr.toString()).apply()
+    suspend fun addReminder(message: String, timeMillis: Long): Reminder = withContext(Dispatchers.IO) {
+        val reminder = Reminder(id = 0, message = message, timeMillis = timeMillis)
+        val id = reminderDao.insert(reminder)
+        reminder.copy(id = id)
     }
 
-    fun addReminder(message: String, timeMillis: Long): Reminder {
-        val list = _reminders.value
-        val nextId = (list.maxOfOrNull { it.id } ?: 0L) + 1L
-        val reminder = Reminder(id = nextId, message = message, timeMillis = timeMillis)
-        val newList = (list + reminder).sortedBy { it.timeMillis }
-        _reminders.value = newList
-        saveToPrefs(newList)
-        return reminder
+    suspend fun updateReminder(id: Long, message: String, timeMillis: Long) = withContext(Dispatchers.IO) {
+        val reminder = Reminder(id = id, message = message, timeMillis = timeMillis)
+        reminderDao.update(reminder)
     }
 
-    fun updateReminder(id: Long, message: String, timeMillis: Long) {
-        val list = _reminders.value
-        val updated = Reminder(id = id, message = message, timeMillis = timeMillis)
-        val newList = list.map { if (it.id == id) updated else it }.sortedBy { it.timeMillis }
-        _reminders.value = newList
-        saveToPrefs(newList)
+    suspend fun deleteReminder(reminder: Reminder) = withContext(Dispatchers.IO) {
+        reminderDao.delete(reminder)
     }
 
-    fun deleteReminder(reminder: Reminder) {
-        val newList = _reminders.value.filter { it.id != reminder.id }
-        _reminders.value = newList
-        saveToPrefs(newList)
+    suspend fun deleteReminders(reminders: List<Reminder>) = withContext(Dispatchers.IO) {
+        val ids = reminders.map { it.id }
+        reminderDao.deleteByIds(ids)
     }
 
-    fun deleteReminders(reminders: List<Reminder>) {
-        val ids = reminders.map { it.id }.toSet()
-        val newList = _reminders.value.filter { it.id !in ids }
-        _reminders.value = newList
-        saveToPrefs(newList)
-    }
+    suspend fun removePastReminders(context: Context): List<Reminder> = withContext(Dispatchers.IO) {
+        if (!ReminderPreferences.getAutoDeletePast(context)) return@withContext emptyList()
 
-    /**
-     * Удаляет напоминания с прошедшей датой. Возвращает список удалённых (для отмены будильников).
-     */
-    fun removePastReminders(context: Context): List<Reminder> {
-        if (!ReminderPreferences.getAutoDeletePast(context)) return emptyList()
         val now = System.currentTimeMillis()
-        val list = _reminders.value
-        val (past, future) = list.partition { it.timeMillis < now }
-        if (past.isEmpty()) return emptyList()
-        _reminders.value = future.sortedBy { it.timeMillis }
-        saveToPrefs(_reminders.value)
-        return past
+        val pastReminders = reminderDao.getPastReminders(now)
+        if (pastReminders.isNotEmpty()) {
+            reminderDao.deletePastReminders(now)
+        }
+        pastReminders
     }
 
-    fun getAll(): List<Reminder> = _reminders.value
-
-    fun getCalendarEventId(reminderId: Long): Long? {
-        val json = prefs.getString(KEY_CALENDAR_EVENT_IDS, "{}") ?: return null
-        return try {
-            val obj = org.json.JSONObject(json)
-            if (obj.has(reminderId.toString())) obj.getLong(reminderId.toString()) else null
-        } catch (_: Exception) { null }
+    suspend fun getAll(): List<Reminder> = withContext(Dispatchers.IO) {
+        reminderDao.getAll()
     }
 
-    fun setCalendarEventId(reminderId: Long, eventId: Long) {
-        val json = prefs.getString(KEY_CALENDAR_EVENT_IDS, "{}") ?: "{}"
-        val obj = try { org.json.JSONObject(json) } catch (_: Exception) { org.json.JSONObject() }
-        obj.put(reminderId.toString(), eventId)
-        prefs.edit().putString(KEY_CALENDAR_EVENT_IDS, obj.toString()).apply()
+    suspend fun getCalendarEventId(reminderId: Long): Long? = withContext(Dispatchers.IO) {
+        calendarMappingDao.getCalendarEventId(reminderId)
     }
 
-    fun removeCalendarEventId(reminderId: Long) {
-        val json = prefs.getString(KEY_CALENDAR_EVENT_IDS, "{}") ?: return
-        try {
-            val obj = org.json.JSONObject(json)
-            obj.remove(reminderId.toString())
-            prefs.edit().putString(KEY_CALENDAR_EVENT_IDS, obj.toString()).apply()
-        } catch (_: Exception) { }
+    suspend fun setCalendarEventId(reminderId: Long, eventId: Long) = withContext(Dispatchers.IO) {
+        val mapping = CalendarEventMapping(reminderId = reminderId, calendarEventId = eventId)
+        calendarMappingDao.insert(mapping)
     }
 
-    fun removeCalendarEventIds(reminderIds: List<Long>) {
-        val json = prefs.getString(KEY_CALENDAR_EVENT_IDS, "{}") ?: return
-        try {
-            val obj = org.json.JSONObject(json)
-            reminderIds.forEach { obj.remove(it.toString()) }
-            prefs.edit().putString(KEY_CALENDAR_EVENT_IDS, obj.toString()).apply()
-        } catch (_: Exception) { }
+    suspend fun removeCalendarEventId(reminderId: Long) = withContext(Dispatchers.IO) {
+        calendarMappingDao.deleteByReminderId(reminderId)
     }
 
-    /** Ключ экземпляра события календаря (eventId_beginMillis) для обратной синхронизации. */
-    fun isCalendarInstanceImported(eventId: Long, beginMillis: Long): Boolean {
+    suspend fun removeCalendarEventIds(reminderIds: List<Long>) = withContext(Dispatchers.IO) {
+        calendarMappingDao.deleteByReminderIds(reminderIds)
+    }
+
+    suspend fun isCalendarInstanceImported(eventId: Long, beginMillis: Long): Boolean = withContext(Dispatchers.IO) {
         val key = "${eventId}_$beginMillis"
-        val json = prefs.getString(KEY_IMPORTED_CALENDAR_INSTANCES, "[]") ?: return false
-        return try {
-            val arr = JSONArray(json)
-            (0 until arr.length()).any { arr.getString(it) == key }
-        } catch (_: Exception) { false }
+        importedInstanceDao.exists(key)
     }
 
-    fun addImportedCalendarInstance(eventId: Long, beginMillis: Long) {
+    suspend fun addImportedCalendarInstance(eventId: Long, beginMillis: Long) = withContext(Dispatchers.IO) {
         val key = "${eventId}_$beginMillis"
-        val json = prefs.getString(KEY_IMPORTED_CALENDAR_INSTANCES, "[]") ?: "[]"
-        val arr = try { JSONArray(json) } catch (_: Exception) { JSONArray() }
-        arr.put(key)
-        prefs.edit().putString(KEY_IMPORTED_CALENDAR_INSTANCES, arr.toString()).apply()
+        val instance = ImportedCalendarInstance(
+            instanceKey = key,
+            eventId = eventId,
+            beginMillis = beginMillis
+        )
+        importedInstanceDao.insert(instance)
+    }
+
+    private fun migrateFromSharedPreferences() {
+        val prefs = context.getSharedPreferences("reminders", Context.MODE_PRIVATE)
+        val migrationDone = prefs.getBoolean("migration_to_room_done", false)
+
+        if (!migrationDone) {
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    val remindersJson = prefs.getString("list", null)
+                    if (!remindersJson.isNullOrEmpty() && remindersJson != "[]") {
+                        val arr = JSONArray(remindersJson)
+                        for (i in 0 until arr.length()) {
+                            val obj = arr.getJSONObject(i)
+                            val reminder = Reminder(
+                                id = obj.getLong("id"),
+                                message = obj.optString("message", obj.optString("title", "")),
+                                timeMillis = obj.getLong("timeMillis")
+                            )
+                            reminderDao.insert(reminder)
+                        }
+                    }
+
+                    val mappingsJson = prefs.getString("calendar_event_ids", null)
+                    if (!mappingsJson.isNullOrEmpty() && mappingsJson != "{}") {
+                        val obj = JSONObject(mappingsJson)
+                        val keys = obj.keys()
+                        while (keys.hasNext()) {
+                            val key = keys.next()
+                            val reminderId = key.toLongOrNull() ?: continue
+                            val eventId = obj.getLong(key)
+                            val mapping = CalendarEventMapping(reminderId, eventId)
+                            calendarMappingDao.insert(mapping)
+                        }
+                    }
+
+                    val instancesJson = prefs.getString("imported_calendar_instances", null)
+                    if (!instancesJson.isNullOrEmpty() && instancesJson != "[]") {
+                        val arr = JSONArray(instancesJson)
+                        for (i in 0 until arr.length()) {
+                            val instanceKey = arr.getString(i)
+                            val parts = instanceKey.split("_")
+                            if (parts.size == 2) {
+                                val eventId = parts[0].toLongOrNull() ?: continue
+                                val beginMillis = parts[1].toLongOrNull() ?: continue
+                                val instance = ImportedCalendarInstance(instanceKey, eventId, beginMillis)
+                                importedInstanceDao.insert(instance)
+                            }
+                        }
+                    }
+
+                    prefs.edit().putBoolean("migration_to_room_done", true).apply()
+
+                    prefs.edit()
+                        .remove("list")
+                        .remove("calendar_event_ids")
+                        .remove("imported_calendar_instances")
+                        .apply()
+
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
     }
 }

@@ -5,7 +5,9 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -21,7 +23,11 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
     private val alarmScheduler = AlarmScheduler(application)
     private val app = application
 
-    val reminders: StateFlow<List<Reminder>> = repo.reminders
+    val reminders: StateFlow<List<Reminder>> = repo.reminders.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
 
     init {
         viewModelScope.launch {
@@ -45,30 +51,34 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
     }
 
     /** Добавляет в календарь напоминания, у которых ещё нет события (догоняющая синхронизация при открытии приложения). */
-    private fun syncRemindersToCalendar() {
+    private suspend fun syncRemindersToCalendar() {
         if (!ReminderPreferences.getAddToCalendar(app)) return
-        val list = repo.reminders.value
-        for (r in list) {
-            if (r.timeMillis <= System.currentTimeMillis()) continue
-            if (repo.getCalendarEventId(r.id) != null) continue
-            CalendarHelper.insertEvent(app, r)?.let { eventId ->
-                repo.setCalendarEventId(r.id, eventId)
+        val list = repo.getAll()
+        withContext(Dispatchers.IO) {
+            for (r in list) {
+                if (r.timeMillis <= System.currentTimeMillis()) continue
+                if (repo.getCalendarEventId(r.id) != null) continue
+                CalendarHelper.insertEvent(app, r)?.let { eventId ->
+                    repo.setCalendarEventId(r.id, eventId)
+                }
             }
         }
     }
 
     /** Читает календарь и добавляет будущие события как напоминания (если ещё не добавлены). */
-    private fun syncFromCalendar() {
-        val now = System.currentTimeMillis()
-        val toMillis = now + 30L * 24 * 60 * 60 * 1000 // +30 дней
-        val readCalendarId = ReminderPreferences.getReadCalendarId(app)
-        val instances = CalendarHelper.queryFutureInstances(app, now, toMillis, readCalendarId)
-        for (inst in instances) {
-            if (repo.isCalendarInstanceImported(inst.eventId, inst.beginMillis)) continue
-            val message = inst.title.ifBlank { "Событие календаря" }
-            val reminder = repo.addReminder(message, inst.beginMillis)
-            alarmScheduler.schedule(reminder)
-            repo.addImportedCalendarInstance(inst.eventId, inst.beginMillis)
+    private suspend fun syncFromCalendar() {
+        withContext(Dispatchers.IO) {
+            val now = System.currentTimeMillis()
+            val toMillis = now + 30L * 24 * 60 * 60 * 1000 // +30 дней
+            val readCalendarId = ReminderPreferences.getReadCalendarId(app)
+            val instances = CalendarHelper.queryFutureInstances(app, now, toMillis, readCalendarId)
+            for (inst in instances) {
+                if (repo.isCalendarInstanceImported(inst.eventId, inst.beginMillis)) continue
+                val message = inst.title.ifBlank { "Событие календаря" }
+                val reminder = repo.addReminder(message, inst.beginMillis)
+                alarmScheduler.schedule(reminder)
+                repo.addImportedCalendarInstance(inst.eventId, inst.beginMillis)
+            }
         }
     }
 

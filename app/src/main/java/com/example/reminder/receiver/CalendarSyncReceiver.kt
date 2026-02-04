@@ -8,6 +8,9 @@ import com.example.reminder.data.repository.ReminderRepository
 import com.example.reminder.helper.CalendarHelper
 import com.example.reminder.scheduler.AlarmScheduler
 import com.example.reminder.scheduler.CalendarSyncScheduler
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 /**
  * По срабатыванию будильника выполняет синхронизацию «календарь → напоминания»
@@ -22,17 +25,17 @@ class CalendarSyncReceiver : BroadcastReceiver() {
             return
         }
         val pendingResult = goAsync()
-        Thread {
+        CoroutineScope(Dispatchers.IO).launch {
             try {
                 runSync(app)
                 CalendarSyncScheduler.scheduleNext(app)
             } finally {
                 pendingResult.finish()
             }
-        }.start()
+        }
     }
 
-    private fun runSync(app: Context) {
+    private suspend fun runSync(app: Context) {
         val repo = ReminderRepository(app)
         val scheduler = AlarmScheduler(app)
         val now = System.currentTimeMillis()
