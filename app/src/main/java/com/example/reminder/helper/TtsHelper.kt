@@ -2,6 +2,7 @@ package com.example.reminder.helper
 
 import android.content.Context
 import android.media.AudioManager
+import android.os.Build
 import android.os.Bundle
 import android.speech.tts.TextToSpeech
 import com.example.reminder.data.preferences.TtsPreferences
@@ -20,7 +21,10 @@ object TtsHelper {
         val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         val previousMode = am.mode
         am.mode = AudioManager.MODE_IN_COMMUNICATION
-        am.isSpeakerphoneOn = false
+        @Suppress("DEPRECATION")
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            am.isSpeakerphoneOn = false
+        }
         return previousMode
     }
 

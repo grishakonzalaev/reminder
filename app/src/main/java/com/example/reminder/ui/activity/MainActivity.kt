@@ -27,13 +27,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -70,7 +71,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.view.ViewCompat
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
+import android.view.View
+import android.widget.FrameLayout
+import kotlin.math.roundToInt
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import java.text.SimpleDateFormat
@@ -451,7 +461,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Назад", modifier = Modifier.size(24.dp))
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад", modifier = Modifier.size(24.dp))
                     }
                     Text("Настройки", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(8.dp))
                 }
@@ -923,13 +933,12 @@ fun EditReminderDialog(
 ) {
     var message by remember(reminder.id) { mutableStateOf(reminder.message) }
     var timeMillis by remember(reminder.id) { mutableStateOf(reminder.timeMillis) }
-    val ctx = LocalContext.current
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Редактировать напоминание") },
         text = {
-            Column {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 OutlinedTextField(
                     value = message,
                     onValueChange = { message = it },
@@ -937,38 +946,16 @@ fun EditReminderDialog(
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 2
                 )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    "Время: ${SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault()).format(Date(timeMillis))}",
+                    style = MaterialTheme.typography.titleMedium
+                )
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("Время: ${SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault()).format(Date(timeMillis))}")
-                Button(
-                    onClick = {
-                        val cal = Calendar.getInstance().apply { timeInMillis = timeMillis }
-                        DatePickerDialog(
-                            ctx,
-                            { _, y, m, d ->
-                                cal.set(Calendar.YEAR, y)
-                                cal.set(Calendar.MONTH, m)
-                                cal.set(Calendar.DAY_OF_MONTH, d)
-                                TimePickerDialog(
-                                    ctx,
-                                    { _, h, min ->
-                                        cal.set(Calendar.HOUR_OF_DAY, h)
-                                        cal.set(Calendar.MINUTE, min)
-                                        timeMillis = cal.timeInMillis
-                                    },
-                                    cal.get(Calendar.HOUR_OF_DAY),
-                                    cal.get(Calendar.MINUTE),
-                                    true
-                                ).show()
-                            },
-                            cal.get(Calendar.YEAR),
-                            cal.get(Calendar.MONTH),
-                            cal.get(Calendar.DAY_OF_MONTH)
-                        ).show()
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Выбрать дату и время")
-                }
+                DateTimePickerSliders(
+                    timeMillis = timeMillis,
+                    onTimeChanged = { timeMillis = it }
+                )
             }
         },
         confirmButton = {
@@ -990,6 +977,264 @@ fun EditReminderDialog(
     )
 }
 
+class AccessibleFrameLayout(context: android.content.Context) : FrameLayout(context) {
+    var currentValue: Float = 0f
+    var currentLabel: String = ""
+
+    override fun onTouchEvent(event: android.view.MotionEvent): Boolean {
+        return false
+    }
+
+    override fun onInterceptTouchEvent(ev: android.view.MotionEvent): Boolean {
+        return false
+    }
+}
+
+@Composable
+fun AdjustableValue(
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    valueRange: ClosedFloatingPointRange<Float>,
+    label: String,
+    roleDescription: String,
+    modifier: Modifier = Modifier
+) {
+    val step = 1f
+
+    Box(
+        modifier = modifier.height(48.dp)
+    ) {
+        Slider(
+            value = value,
+            onValueChange = onValueChange,
+            valueRange = valueRange,
+            steps = ((valueRange.endInclusive - valueRange.start) / step - 1).roundToInt().coerceAtLeast(0),
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.Center)
+                .clearAndSetSemantics { }
+        )
+
+        AndroidView(
+            factory = { context ->
+                AccessibleFrameLayout(context).apply {
+                    currentValue = value
+                    currentLabel = label
+                    isFocusable = true
+                    isClickable = false
+                    importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
+
+                    ViewCompat.setAccessibilityDelegate(this, object : androidx.core.view.AccessibilityDelegateCompat() {
+                        override fun onInitializeAccessibilityNodeInfo(host: View, info: AccessibilityNodeInfoCompat) {
+                            super.onInitializeAccessibilityNodeInfo(host, info)
+                            val customHost = host as? AccessibleFrameLayout
+                            info.className = "android.widget.SeekBar"
+                            info.roleDescription = roleDescription
+                            info.isScrollable = true
+                            info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_SCROLL_FORWARD)
+                            info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_SCROLL_BACKWARD)
+                            info.contentDescription = customHost?.currentLabel ?: label
+                            info.setText(customHost?.currentLabel ?: label)
+                        }
+
+                        override fun performAccessibilityAction(host: View, action: Int, args: android.os.Bundle?): Boolean {
+                            val customHost = host as? AccessibleFrameLayout ?: return super.performAccessibilityAction(host, action, args)
+                            when (action) {
+                                AccessibilityNodeInfoCompat.ACTION_SCROLL_FORWARD -> {
+                                    val currentVal = customHost.currentValue
+                                    val newValue = (currentVal + step).coerceAtMost(valueRange.endInclusive)
+                                    if (newValue != currentVal) {
+                                        onValueChange(newValue)
+                                        return true
+                                    }
+                                }
+                                AccessibilityNodeInfoCompat.ACTION_SCROLL_BACKWARD -> {
+                                    val currentVal = customHost.currentValue
+                                    val newValue = (currentVal - step).coerceAtLeast(valueRange.start)
+                                    if (newValue != currentVal) {
+                                        onValueChange(newValue)
+                                        return true
+                                    }
+                                }
+                            }
+                            return super.performAccessibilityAction(host, action, args)
+                        }
+                    })
+                }
+            },
+            update = { view ->
+                (view as? AccessibleFrameLayout)?.let {
+                    it.currentValue = value
+                    it.currentLabel = label
+                    view.contentDescription = label
+                    view.announceForAccessibility(label)
+                }
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+        )
+    }
+}
+
+@Composable
+fun DateTimePickerSliders(
+    timeMillis: Long,
+    onTimeChanged: (Long) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val calendar = remember(timeMillis) { Calendar.getInstance().apply { this.timeInMillis = timeMillis } }
+    var day by remember(timeMillis) { mutableStateOf(calendar.get(Calendar.DAY_OF_MONTH).toFloat()) }
+    var month by remember(timeMillis) { mutableStateOf(calendar.get(Calendar.MONTH).toFloat()) }
+    var year by remember(timeMillis) { mutableStateOf(calendar.get(Calendar.YEAR).toFloat()) }
+    var hour by remember(timeMillis) { mutableStateOf(calendar.get(Calendar.HOUR_OF_DAY).toFloat()) }
+    var minute by remember(timeMillis) { mutableStateOf(calendar.get(Calendar.MINUTE).toFloat()) }
+
+    val monthNames = listOf("янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек")
+    val monthNamesFullGenitive = listOf("января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря")
+    val monthNamesFullNominative = listOf("январь", "февраль", "март", "апрель", "май", "июнь", "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь")
+    val dayNames = listOf("воскресенье", "понедельник", "вторник", "среда", "четверг", "пятница", "суббота")
+
+    fun updateTime() {
+        val cal = Calendar.getInstance().apply {
+            set(Calendar.YEAR, year.toInt())
+            set(Calendar.MONTH, month.toInt())
+            set(Calendar.DAY_OF_MONTH, day.toInt())
+            set(Calendar.HOUR_OF_DAY, hour.toInt())
+            set(Calendar.MINUTE, minute.toInt())
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        onTimeChanged(cal.timeInMillis)
+    }
+
+    val currentCal = remember(day, month, year, hour, minute) {
+        Calendar.getInstance().apply {
+            set(Calendar.YEAR, year.toInt())
+            set(Calendar.MONTH, month.toInt())
+            set(Calendar.DAY_OF_MONTH, day.toInt().coerceAtMost(getActualMaximum(Calendar.DAY_OF_MONTH)))
+            set(Calendar.HOUR_OF_DAY, hour.toInt())
+            set(Calendar.MINUTE, minute.toInt())
+        }
+    }
+
+    val dayOfWeek = dayNames[currentCal.get(Calendar.DAY_OF_WEEK) - 1]
+    val fullDateTimeString = "${dayOfWeek.replaceFirstChar { it.uppercase() }}, ${currentCal.get(Calendar.DAY_OF_MONTH)} ${monthNamesFullGenitive[currentCal.get(Calendar.MONTH)]} ${currentCal.get(Calendar.YEAR)}, ${hour.toInt().toString().padStart(2, '0')}:${minute.toInt().toString().padStart(2, '0')}"
+
+    Column(modifier = modifier) {
+        // Полная информация о дате и времени
+        Text(
+            text = fullDateTimeString,
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.fillMaxWidth(),
+            color = MaterialTheme.colorScheme.primary
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        // День
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = day.toInt().toString().padStart(2, '0'),
+                style = MaterialTheme.typography.headlineMedium,
+                modifier = Modifier
+                    .width(60.dp)
+                    .clearAndSetSemantics { }
+            )
+            AdjustableValue(
+                value = day,
+                onValueChange = { day = it; updateTime() },
+                valueRange = 1f..31f,
+                label = day.toInt().toString().padStart(2, '0'),
+                roleDescription = "день",
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Месяц
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = monthNames[month.toInt()],
+                style = MaterialTheme.typography.headlineMedium,
+                modifier = Modifier
+                    .width(60.dp)
+                    .clearAndSetSemantics { }
+            )
+            AdjustableValue(
+                value = month,
+                onValueChange = { month = it; updateTime() },
+                valueRange = 0f..11f,
+                label = monthNamesFullNominative[month.toInt()],
+                roleDescription = "месяц",
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Год
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = year.toInt().toString(),
+                style = MaterialTheme.typography.headlineMedium,
+                modifier = Modifier
+                    .width(60.dp)
+                    .clearAndSetSemantics { }
+            )
+            AdjustableValue(
+                value = year,
+                onValueChange = { year = it; updateTime() },
+                valueRange = Calendar.getInstance().get(Calendar.YEAR).toFloat()..(Calendar.getInstance().get(Calendar.YEAR) + 10).toFloat(),
+                label = year.toInt().toString(),
+                roleDescription = "год",
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Час
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = hour.toInt().toString().padStart(2, '0'),
+                style = MaterialTheme.typography.headlineMedium,
+                modifier = Modifier
+                    .width(60.dp)
+                    .clearAndSetSemantics { }
+            )
+            AdjustableValue(
+                value = hour,
+                onValueChange = { hour = it; updateTime() },
+                valueRange = 0f..23f,
+                label = hour.toInt().toString().padStart(2, '0'),
+                roleDescription = "час",
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Минута
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = minute.toInt().toString().padStart(2, '0'),
+                style = MaterialTheme.typography.headlineMedium,
+                modifier = Modifier
+                    .width(60.dp)
+                    .clearAndSetSemantics { }
+            )
+            AdjustableValue(
+                value = minute,
+                onValueChange = { minute = it; updateTime() },
+                valueRange = 0f..59f,
+                label = minute.toInt().toString().padStart(2, '0'),
+                roleDescription = "минута",
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
 @Composable
 fun AddReminderDialog(
     onDismiss: () -> Unit,
@@ -997,13 +1242,12 @@ fun AddReminderDialog(
 ) {
     var message by remember { mutableStateOf("") }
     var timeMillis by remember { mutableStateOf(System.currentTimeMillis() + 60_000) }
-    val ctx = LocalContext.current
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Новое напоминание") },
         text = {
-            Column {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 OutlinedTextField(
                     value = message,
                     onValueChange = { message = it },
@@ -1011,38 +1255,16 @@ fun AddReminderDialog(
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 2
                 )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    "Время: ${SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault()).format(Date(timeMillis))}",
+                    style = MaterialTheme.typography.titleMedium
+                )
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("Время: ${SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault()).format(Date(timeMillis))}")
-                Button(
-                    onClick = {
-                        val cal = Calendar.getInstance().apply { timeInMillis = timeMillis }
-                        DatePickerDialog(
-                            ctx,
-                            { _, y, m, d ->
-                                cal.set(Calendar.YEAR, y)
-                                cal.set(Calendar.MONTH, m)
-                                cal.set(Calendar.DAY_OF_MONTH, d)
-                                TimePickerDialog(
-                                    ctx,
-                                    { _, h, min ->
-                                        cal.set(Calendar.HOUR_OF_DAY, h)
-                                        cal.set(Calendar.MINUTE, min)
-                                        timeMillis = cal.timeInMillis
-                                    },
-                                    cal.get(Calendar.HOUR_OF_DAY),
-                                    cal.get(Calendar.MINUTE),
-                                    true
-                                ).show()
-                            },
-                            cal.get(Calendar.YEAR),
-                            cal.get(Calendar.MONTH),
-                            cal.get(Calendar.DAY_OF_MONTH)
-                        ).show()
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Выбрать дату и время")
-                }
+                DateTimePickerSliders(
+                    timeMillis = timeMillis,
+                    onTimeChanged = { timeMillis = it }
+                )
             }
         },
         confirmButton = {
