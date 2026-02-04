@@ -45,7 +45,12 @@ class CallActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             tts = createTts()
             scheduleSpeak() // озвучить через 5 сек после открытия экрана
             findViewById<Button>(R.id.btnAccept).setOnClickListener { scheduleSpeak() }
-            findViewById<Button>(R.id.btnDecline).setOnClickListener { finish() }
+            findViewById<Button>(R.id.btnDecline).setOnClickListener {
+                val rid = intent.getLongExtra(EXTRA_ID, -1L)
+                val m = intent.getStringExtra(EXTRA_MSG) ?: "Пора!"
+                if (rid >= 0) SnoozeHelper.tryScheduleSnooze(this, rid, m)
+                finish()
+            }
             return
         }
 
@@ -80,6 +85,9 @@ class CallActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         findViewById<Button>(R.id.btnDecline).setOnClickListener {
             ringtone?.stop()
             vibrator?.cancel()
+            val reminderId = intent.getLongExtra(EXTRA_ID, -1L)
+            val msg = intent.getStringExtra(EXTRA_MSG) ?: "Пора!"
+            if (reminderId >= 0) SnoozeHelper.tryScheduleSnooze(this, reminderId, msg)
             finish()
         }
     }

@@ -11,6 +11,10 @@ object ReminderPreferences {
     private const val KEY_SYNC_FROM_CALENDAR = "sync_from_calendar"
     private const val KEY_WRITE_CALENDAR_ID = "write_calendar_id"
     private const val KEY_READ_CALENDAR_ID = "read_calendar_id"
+    private const val KEY_SNOOZE_ENABLED = "snooze_enabled"
+    private const val KEY_SNOOZE_REPEATS = "snooze_repeats"
+    private const val KEY_SNOOZE_DELAY_MINUTES = "snooze_delay_minutes"
+    private const val KEY_SNOOZE_REMAINING_PREFIX = "snooze_remaining_"
 
     const val THEME_LIGHT = "light"
     const val THEME_DARK = "dark"
@@ -91,5 +95,56 @@ object ReminderPreferences {
     fun setReadCalendarId(context: Context, calendarId: Long) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
             .putLong(KEY_READ_CALENDAR_ID, calendarId).apply()
+    }
+
+    // ——— Отложенные напоминания ———
+
+    fun getSnoozeEnabled(context: Context): Boolean {
+        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getBoolean(KEY_SNOOZE_ENABLED, false)
+    }
+
+    fun setSnoozeEnabled(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putBoolean(KEY_SNOOZE_ENABLED, enabled).apply()
+    }
+
+    /** Сколько раз повторить напоминание после отложения (0 = только один повтор, 1 = два раза всего и т.д.). */
+    fun getSnoozeRepeats(context: Context): Int {
+        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getInt(KEY_SNOOZE_REPEATS, 2).coerceIn(0, 10)
+    }
+
+    fun setSnoozeRepeats(context: Context, count: Int) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putInt(KEY_SNOOZE_REPEATS, count.coerceIn(0, 10)).apply()
+    }
+
+    /** На сколько минут откладывать напоминание при отклонении звонка. */
+    fun getSnoozeDelayMinutes(context: Context): Int {
+        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getInt(KEY_SNOOZE_DELAY_MINUTES, 5).coerceIn(1, 60)
+    }
+
+    fun setSnoozeDelayMinutes(context: Context, minutes: Int) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putInt(KEY_SNOOZE_DELAY_MINUTES, minutes.coerceIn(1, 60)).apply()
+    }
+
+    fun getRemainingSnoozes(context: Context, reminderId: Long): Int {
+        val key = KEY_SNOOZE_REMAINING_PREFIX + reminderId
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        return if (prefs.contains(key)) prefs.getInt(key, 0) else getSnoozeRepeats(context)
+    }
+
+    fun setRemainingSnoozes(context: Context, reminderId: Long, remaining: Int) {
+        val key = KEY_SNOOZE_REMAINING_PREFIX + reminderId
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putInt(key, remaining.coerceAtLeast(0)).apply()
+    }
+
+    fun clearRemainingSnoozes(context: Context, reminderId: Long) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .remove(KEY_SNOOZE_REMAINING_PREFIX + reminderId).apply()
     }
 }

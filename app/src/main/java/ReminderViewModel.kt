@@ -3,10 +3,12 @@ package com.example.reminder
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class ReminderViewModel(application: Application) : AndroidViewModel(application) {
     private val repo = ReminderRepository(application)
@@ -21,12 +23,30 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
             removed.forEach { alarmScheduler.cancel(it.id) }
         }
         viewModelScope.launch {
+            delay(500L)
+            syncRemindersToCalendar()
+        }
+        viewModelScope.launch {
             delay(1_000L) // первая синхронизация через 1 сек после старта
             while (isActive) {
                 if (ReminderPreferences.getSyncFromCalendar(app)) {
                     syncFromCalendar()
                 }
+                syncRemindersToCalendar() // догоняющая запись в календарь (на случай отмены при сворачивании)
                 delay(30_000L) // далее раз в пол минуты
+            }
+        }
+    }
+
+    /** Добавляет в календарь напоминания, у которых ещё нет события (догоняющая синхронизация при открытии приложения). */
+    private fun syncRemindersToCalendar() {
+        if (!ReminderPreferences.getAddToCalendar(app)) return
+        val list = repo.reminders.value
+        for (r in list) {
+            if (r.timeMillis <= System.currentTimeMillis()) continue
+            if (repo.getCalendarEventId(r.id) != null) continue
+            CalendarHelper.insertEvent(app, r)?.let { eventId ->
+                repo.setCalendarEventId(r.id, eventId)
             }
         }
     }
@@ -51,8 +71,10 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
             val reminder = repo.addReminder(message, timeMillis)
             alarmScheduler.schedule(reminder)
             if (ReminderPreferences.getAddToCalendar(app)) {
-                CalendarHelper.insertEvent(app, reminder)?.let { eventId ->
-                    repo.setCalendarEventId(reminder.id, eventId)
+                withContext(Dispatchers.IO) {
+                    CalendarHelper.insertEvent(app, reminder)?.let { eventId ->
+                        repo.setCalendarEventId(reminder.id, eventId)
+                    }
                 }
             }
         }
@@ -84,6 +106,7 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
     fun deleteReminder(reminder: Reminder) {
         viewModelScope.launch {
             alarmScheduler.cancel(reminder.id)
+            SnoozeHelper.cancelSnooze(app, reminder.id)
             repo.getCalendarEventId(reminder.id)?.let { eventId ->
                 CalendarHelper.deleteEvent(app, eventId)
                 repo.removeCalendarEventId(reminder.id)
@@ -95,6 +118,7 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
     fun deleteReminders(reminders: List<Reminder>) {
         viewModelScope.launch {
             reminders.forEach { alarmScheduler.cancel(it.id) }
+            reminders.forEach { SnoozeHelper.cancelSnooze(app, it.id) }
             reminders.forEach { r ->
                 repo.getCalendarEventId(r.id)?.let { eventId ->
                     CalendarHelper.deleteEvent(app, eventId)

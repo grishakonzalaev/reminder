@@ -15,6 +15,7 @@ class ReminderApp : android.app.Application() {
         instance = this
         ReminderPreferences.applyThemeMode(this)
         rescheduleAllFutureReminders()
+        CalendarSyncScheduler.scheduleIfEnabled(this)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             registerPhoneAccount()
         }
@@ -56,3 +57,4 @@ class ReminderApp : android.app.Application() {
             private set
     }
 }
+

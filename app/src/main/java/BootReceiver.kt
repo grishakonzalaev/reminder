@@ -18,5 +18,6 @@ class BootReceiver : BroadcastReceiver() {
         repo.getAll()
             .filter { it.timeMillis > now }
             .forEach { scheduler.schedule(it) }
+        CalendarSyncScheduler.scheduleIfEnabled(context)
     }
 }

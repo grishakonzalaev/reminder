@@ -99,6 +99,14 @@ class ReminderConnection : Connection() {
     override fun onReject() {
         delayedSpeakRunnable?.let { mainHandler.removeCallbacks(it) }
         delayedSpeakRunnable = null
+        val ctx = ReminderApp.instance ?: run { destroy(); return }
+        val extras = when {
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.O -> getExtras()
+            else -> null
+        } ?: ReminderConnectionService.lastRequestExtras
+        val id = extras?.getLong(ReminderReceiver.EXTRA_ID, -1L) ?: -1L
+        val msg = extras?.getString(ReminderReceiver.EXTRA_MSG) ?: "Пора!"
+        if (id >= 0) SnoozeHelper.tryScheduleSnooze(ctx, id, msg)
         destroy()
     }
 

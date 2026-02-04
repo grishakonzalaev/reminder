@@ -42,6 +42,7 @@
             android:theme="@style/Theme.Call" />
 
         <receiver android:name=".ReminderReceiver" android:exported="false" />
+        <receiver android:name=".CalendarSyncReceiver" android:exported="false" />
 
         <receiver android:name=".BootReceiver" android:exported="true">
             <intent-filter>

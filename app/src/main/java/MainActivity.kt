@@ -340,6 +340,9 @@ fun SettingsScreen(onBack: () -> Unit) {
     var showReadCalendarDialog by remember { mutableStateOf(false) }
     var autoDeletePast by remember { mutableStateOf(ReminderPreferences.getAutoDeletePast(ctx)) }
     var useCallApi by remember { mutableStateOf(TtsPreferences.getUseCallApi(ctx)) }
+    var snoozeEnabled by remember { mutableStateOf(ReminderPreferences.getSnoozeEnabled(ctx)) }
+    var snoozeRepeats by remember { mutableStateOf(ReminderPreferences.getSnoozeRepeats(ctx).toString()) }
+    var snoozeDelayMinutes by remember { mutableStateOf(ReminderPreferences.getSnoozeDelayMinutes(ctx).toString()) }
     val availableCalendars: List<Pair<Long, String>> = remember { com.example.reminder.CalendarHelper.getAvailableCalendars(ctx) }
 
     DisposableEffect(Unit) {
@@ -432,6 +435,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                     onCheckedChange = {
                         syncFromCalendar = it
                         ReminderPreferences.setSyncFromCalendar(ctx, it)
+                        if (it) CalendarSyncScheduler.scheduleIfEnabled(ctx) else CalendarSyncScheduler.cancel(ctx)
                     }
                 )
             }
@@ -583,6 +587,61 @@ fun SettingsScreen(onBack: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 4.dp)
             )
+            Spacer(modifier = Modifier.height(24.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Отложенные напоминания", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                Switch(
+                    checked = snoozeEnabled,
+                    onCheckedChange = {
+                        snoozeEnabled = it
+                        ReminderPreferences.setSnoozeEnabled(ctx, it)
+                    }
+                )
+            }
+            Text(
+                "При отклонении звонка напоминание повторится через заданное время (до заданного числа повторов).",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+            if (snoozeEnabled) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text("Количество повторов", style = MaterialTheme.typography.titleSmall)
+                Spacer(modifier = Modifier.height(4.dp))
+                OutlinedTextField(
+                    value = snoozeRepeats,
+                    onValueChange = { s ->
+                        if (s.isEmpty() || s.all { it.isDigit() }) {
+                            snoozeRepeats = s
+                            s.toIntOrNull()?.coerceIn(0, 10)?.let { ReminderPreferences.setSnoozeRepeats(ctx, it) }
+                        }
+                    },
+                    label = { Text("0–10 (сколько раз повторить после отложения)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("На сколько минут откладывать", style = MaterialTheme.typography.titleSmall)
+                Spacer(modifier = Modifier.height(4.dp))
+                OutlinedTextField(
+                    value = snoozeDelayMinutes,
+                    onValueChange = { s ->
+                        if (s.isEmpty() || s.all { it.isDigit() }) {
+                            snoozeDelayMinutes = s
+                            s.toIntOrNull()?.coerceIn(1, 60)?.let { ReminderPreferences.setSnoozeDelayMinutes(ctx, it) }
+                        }
+                    },
+                    label = { Text("1–60 минут") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                )
+            }
             Spacer(modifier = Modifier.height(24.dp))
             Text("Синтезатор речи", style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(8.dp))
