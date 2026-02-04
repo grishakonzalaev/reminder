@@ -11,6 +11,7 @@ import android.os.Bundle
 import android.provider.Settings
 import android.telecom.TelecomManager
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -150,8 +151,20 @@ fun ReminderScreen(viewModel: ReminderViewModel = viewModel()) {
     var showSettings by remember { mutableStateOf(false) }
     var selectionMode by remember { mutableStateOf(false) }
     var selectedIds by remember { mutableStateOf(setOf<Long>()) }
+    var reminderToDelete by remember { mutableStateOf<Reminder?>(null) }
+    var showBulkDeleteConfirm by remember { mutableStateOf(false) }
 
     val ctx = LocalContext.current
+
+    BackHandler(enabled = showSettings) {
+        showSettings = false
+    }
+
+    BackHandler(enabled = selectionMode) {
+        selectionMode = false
+        selectedIds = emptySet()
+    }
+
     if (showSettings) {
         SettingsScreen(onBack = { showSettings = false })
         return
@@ -214,13 +227,11 @@ fun ReminderScreen(viewModel: ReminderViewModel = viewModel()) {
                     }
                     TextButton(
                         onClick = {
-                            val toDelete = reminders.filter { it.id in selectedIds }
-                            if (toDelete.isNotEmpty()) {
-                                viewModel.deleteReminders(toDelete)
-                                selectionMode = false
-                                selectedIds = emptySet()
+                            if (selectedIds.isNotEmpty()) {
+                                showBulkDeleteConfirm = true
                             }
-                        }
+                        },
+                        enabled = selectedIds.isNotEmpty()
                     ) {
                         Text("Удалить", color = if (selectedIds.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error)
                     }
@@ -302,7 +313,7 @@ fun ReminderScreen(viewModel: ReminderViewModel = viewModel()) {
                             selectedIds = if (r.id in selectedIds) selectedIds - r.id else selectedIds + r.id
                         },
                         onEdit = { reminderToEdit = r },
-                        onDelete = { viewModel.deleteReminder(r) }
+                        onDelete = { reminderToDelete = r }
                     )
                 }
             }
@@ -325,6 +336,55 @@ fun ReminderScreen(viewModel: ReminderViewModel = viewModel()) {
             onConfirm = { message, timeMillis ->
                 viewModel.updateReminder(reminder, message, timeMillis)
                 reminderToEdit = null
+            }
+        )
+    }
+
+    reminderToDelete?.let { reminder ->
+        AlertDialog(
+            onDismissRequest = { reminderToDelete = null },
+            title = { Text("Удалить напоминание?") },
+            text = { Text("\"${reminder.message}\" будет удалено безвозвратно.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteReminder(reminder)
+                        reminderToDelete = null
+                    }
+                ) {
+                    Text("Удалить", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { reminderToDelete = null }) {
+                    Text("Отмена")
+                }
+            }
+        )
+    }
+
+    if (showBulkDeleteConfirm) {
+        val toDelete = reminders.filter { it.id in selectedIds }
+        AlertDialog(
+            onDismissRequest = { showBulkDeleteConfirm = false },
+            title = { Text("Удалить напоминания?") },
+            text = { Text("Будет удалено ${toDelete.size} ${if (toDelete.size == 1) "напоминание" else "напоминаний"} безвозвратно.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteReminders(toDelete)
+                        showBulkDeleteConfirm = false
+                        selectionMode = false
+                        selectedIds = emptySet()
+                    }
+                ) {
+                    Text("Удалить", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showBulkDeleteConfirm = false }) {
+                    Text("Отмена")
+                }
             }
         )
     }
@@ -352,6 +412,18 @@ fun SettingsScreen(onBack: () -> Unit) {
     var snoozeRepeats by remember { mutableStateOf(ReminderPreferences.getSnoozeRepeats(ctx).toString()) }
     var snoozeDelayMinutes by remember { mutableStateOf(ReminderPreferences.getSnoozeDelayMinutes(ctx).toString()) }
     val availableCalendars: List<Pair<Long, String>> = remember { CalendarHelper.getAvailableCalendars(ctx) }
+
+    BackHandler(enabled = showTtsList || showWriteCalendarDialog || showReadCalendarDialog) {
+        when {
+            showTtsList -> showTtsList = false
+            showWriteCalendarDialog -> showWriteCalendarDialog = false
+            showReadCalendarDialog -> showReadCalendarDialog = false
+        }
+    }
+
+    BackHandler(enabled = !showTtsList && !showWriteCalendarDialog && !showReadCalendarDialog) {
+        onBack()
+    }
 
     DisposableEffect(Unit) {
         onDispose {
