@@ -1,7 +1,5 @@
 package com.example.reminder.service
 
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
@@ -10,6 +8,8 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import androidx.core.app.NotificationCompat
+import com.example.reminder.Constants
+import com.example.reminder.helper.NotificationHelper
 import com.example.reminder.receiver.ReminderReceiver
 import com.example.reminder.ui.activity.CallActivity
 
@@ -19,13 +19,9 @@ class ReminderService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         try {
             val id = intent?.getLongExtra(ReminderReceiver.EXTRA_ID, -1L) ?: -1L
-            val message = intent?.getStringExtra(ReminderReceiver.EXTRA_MSG) ?: "Пора!"
+            val message = intent?.getStringExtra(ReminderReceiver.EXTRA_MSG) ?: Constants.DEFAULT_REMINDER_MESSAGE
 
-            val channelId = "reminder_fg_channel"
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val channel = NotificationChannel(channelId, "Напоминание", NotificationManager.IMPORTANCE_LOW)
-                (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).createNotificationChannel(channel)
-            }
+            val channelId = NotificationHelper.createForegroundServiceChannel(this)
 
             val notification = NotificationCompat.Builder(this, channelId)
                 .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)

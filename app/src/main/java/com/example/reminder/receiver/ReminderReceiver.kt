@@ -1,8 +1,6 @@
 package com.example.reminder.receiver
 
-import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -10,15 +8,18 @@ import android.os.Build
 import android.os.Bundle
 import android.telecom.TelecomManager
 import androidx.core.app.NotificationCompat
+import com.example.reminder.Constants
 import com.example.reminder.app.ReminderApp
 import com.example.reminder.data.preferences.TtsPreferences
+import com.example.reminder.helper.NotificationHelper
+import com.example.reminder.helper.PendingIntentHelper
 import com.example.reminder.ui.activity.CallActivity
 
 class ReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         try {
             val id = intent.getLongExtra(EXTRA_ID, -1L)
-            val message = intent.getStringExtra(EXTRA_MSG) ?: "Пора!"
+            val message = intent.getStringExtra(EXTRA_MSG) ?: Constants.DEFAULT_REMINDER_MESSAGE
             val useCallApi = TtsPreferences.getUseCallApi(context)
 
             // При включённой опции «Использовать API звонков» — доставляем через Telecom (интерфейс звонков, звук через звонок)
@@ -52,21 +53,13 @@ class ReminderReceiver : BroadcastReceiver() {
                 context.startActivity(callIntent)
             } catch (_: Exception) { }
 
-            val channelId = "reminder_call_channel"
+            val channelId = NotificationHelper.createReminderCallChannel(context)
             val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val channel = NotificationChannel(channelId, "Напоминания", NotificationManager.IMPORTANCE_HIGH).apply {
-                    setLockscreenVisibility(android.app.Notification.VISIBILITY_PUBLIC)
-                    setBypassDnd(true)
-                }
-                manager.createNotificationChannel(channel)
-            }
 
-            val fullScreenPending = PendingIntent.getActivity(
+            val fullScreenPending = PendingIntentHelper.createActivity(
                 context,
                 (id and 0x7FFFFFFF).toInt(),
-                callIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                callIntent
             )
 
             val notification = NotificationCompat.Builder(context, channelId)

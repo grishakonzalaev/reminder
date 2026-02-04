@@ -1,6 +1,5 @@
 package com.example.reminder.ui.activity
 
-import android.media.AudioManager
 import android.media.Ringtone
 import android.media.RingtoneManager
 import android.os.Build
@@ -15,9 +14,11 @@ import android.widget.Button
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import java.util.Locale
+import com.example.reminder.Constants
 import com.example.reminder.R
 import com.example.reminder.data.preferences.TtsPreferences
 import com.example.reminder.helper.SnoozeHelper
+import com.example.reminder.helper.TtsHelper
 
 class CallActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private lateinit var tts: TextToSpeech
@@ -36,7 +37,7 @@ class CallActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         }
         setContentView(R.layout.activity_call)
 
-        message = intent.getStringExtra(EXTRA_MSG) ?: "Пора!"
+        message = intent.getStringExtra(EXTRA_MSG) ?: Constants.DEFAULT_REMINDER_MESSAGE
         val answeredByHeadset = intent.getBooleanExtra(EXTRA_ANSWERED_BY_HEADSET, false)
 
         findViewById<TextView>(R.id.callerName).text = "Напоминание"
@@ -45,12 +46,12 @@ class CallActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
         // Если ответили с гарнитуры — не звоним и не вибрируем, через 5 сек TTS
         if (answeredByHeadset) {
-            tts = createTts()
+            tts = TtsHelper.createTts(this, this)
             scheduleSpeak() // озвучить через 5 сек после открытия экрана
             findViewById<Button>(R.id.btnAccept).setOnClickListener { scheduleSpeak() }
             findViewById<Button>(R.id.btnDecline).setOnClickListener {
                 val rid = intent.getLongExtra(EXTRA_ID, -1L)
-                val m = intent.getStringExtra(EXTRA_MSG) ?: "Пора!"
+                val m = intent.getStringExtra(EXTRA_MSG) ?: Constants.DEFAULT_REMINDER_MESSAGE
                 if (rid >= 0) SnoozeHelper.tryScheduleSnooze(this, rid, m)
                 finish()
             }
@@ -77,7 +78,7 @@ class CallActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         ringtone = RingtoneManager.getRingtone(this, uri)
         ringtone?.play()
 
-        tts = createTts()
+        tts = TtsHelper.createTts(this, this)
 
         findViewById<Button>(R.id.btnAccept).setOnClickListener {
             ringtone?.stop()
@@ -89,18 +90,9 @@ class CallActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             ringtone?.stop()
             vibrator?.cancel()
             val reminderId = intent.getLongExtra(EXTRA_ID, -1L)
-            val msg = intent.getStringExtra(EXTRA_MSG) ?: "Пора!"
+            val msg = intent.getStringExtra(EXTRA_MSG) ?: Constants.DEFAULT_REMINDER_MESSAGE
             if (reminderId >= 0) SnoozeHelper.tryScheduleSnooze(this, reminderId, msg)
             finish()
-        }
-    }
-
-    private fun createTts(): TextToSpeech {
-        val engine = TtsPreferences.getSelectedEnginePackage(this)
-        return if (engine != null) {
-            TextToSpeech(this, this, engine)
-        } else {
-            TextToSpeech(this, this)
         }
     }
 
@@ -125,13 +117,8 @@ class CallActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         tts.setSpeechRate(TtsPreferences.getSpeechRate(this))
         val useEarpiece = TtsPreferences.getUseCallApi(this)
         val params = if (useEarpiece) {
-            val am = getSystemService(AUDIO_SERVICE) as AudioManager
-            previousAudioMode = am.mode
-            am.mode = AudioManager.MODE_IN_COMMUNICATION
-            am.isSpeakerphoneOn = false
-            Bundle().apply {
-                putString(TextToSpeech.Engine.KEY_PARAM_STREAM, AudioManager.STREAM_VOICE_CALL.toString())
-            }
+            previousAudioMode = TtsHelper.setupCallAudioMode(this)
+            TtsHelper.createVoiceCallParams()
         } else {
             null
         }
@@ -139,13 +126,8 @@ class CallActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     }
 
     private fun restoreAudioMode() {
-        if (previousAudioMode >= 0) {
-            try {
-                val am = getSystemService(AUDIO_SERVICE) as AudioManager
-                am.mode = previousAudioMode
-            } catch (_: Exception) { }
-            previousAudioMode = -1
-        }
+        TtsHelper.restoreAudioMode(this, previousAudioMode)
+        previousAudioMode = -1
     }
 
     override fun onInit(status: Int) {

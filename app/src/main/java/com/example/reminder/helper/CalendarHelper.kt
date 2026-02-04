@@ -5,6 +5,8 @@ import android.content.ContentValues
 import android.content.Context
 import android.provider.CalendarContract
 import androidx.core.content.ContextCompat
+import com.example.reminder.data.model.Reminder
+import com.example.reminder.data.preferences.ReminderPreferences
 import java.util.TimeZone
 
 /** Экземпляр события календаря (для обратной синхронизации). */

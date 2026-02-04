@@ -1,17 +1,15 @@
 package com.example.reminder.scheduler
 
-import android.app.AlarmManager
-import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.os.Build
+import com.example.reminder.Constants
 import com.example.reminder.data.preferences.ReminderPreferences
+import com.example.reminder.helper.AlarmHelper
+import com.example.reminder.helper.PendingIntentHelper
 import com.example.reminder.receiver.CalendarSyncReceiver
 
 /** Запуск/остановка фоновой синхронизации календаря каждые 30 секунд (чтение событий → напоминания). */
 object CalendarSyncScheduler {
-    private const val REQUEST_CODE = 19001
-    private const val INTERVAL_MS = 30_000L // 30 секунд
 
     fun scheduleIfEnabled(context: Context) {
         if (!ReminderPreferences.getSyncFromCalendar(context)) return
@@ -24,31 +22,24 @@ object CalendarSyncScheduler {
         val intent = Intent(context, CalendarSyncReceiver::class.java).apply {
             action = CalendarSyncReceiver.ACTION_SYNC_CALENDAR
         }
-        val pending = PendingIntent.getBroadcast(
+        val pending = PendingIntentHelper.createBroadcast(
             context,
-            REQUEST_CODE,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            Constants.CALENDAR_SYNC_REQUEST_CODE,
+            intent
         )
-        val triggerAt = System.currentTimeMillis() + INTERVAL_MS
-        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
-            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pending)
-        } else {
-            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pending)
-        }
+        val triggerAt = System.currentTimeMillis() + Constants.CALENDAR_SYNC_INTERVAL_MS
+        AlarmHelper.scheduleExactAlarm(context, triggerAt, pending)
     }
 
     fun cancel(context: Context) {
         val intent = Intent(context, CalendarSyncReceiver::class.java).apply {
             action = CalendarSyncReceiver.ACTION_SYNC_CALENDAR
         }
-        val pending = PendingIntent.getBroadcast(
+        val pending = PendingIntentHelper.createBroadcast(
             context,
-            REQUEST_CODE,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            Constants.CALENDAR_SYNC_REQUEST_CODE,
+            intent
         )
-        (context.getSystemService(Context.ALARM_SERVICE) as AlarmManager).cancel(pending)
+        AlarmHelper.cancelAlarm(context, pending)
     }
 }

@@ -1,16 +1,18 @@
 package com.example.reminder.service
 
+import android.content.Context
 import android.media.AudioManager
 import android.os.Build
-import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.speech.tts.TextToSpeech
 import android.telecom.Connection
 import androidx.annotation.RequiresApi
+import com.example.reminder.Constants
 import com.example.reminder.app.ReminderApp
 import com.example.reminder.data.preferences.TtsPreferences
 import com.example.reminder.helper.SnoozeHelper
+import com.example.reminder.helper.TtsHelper
 import com.example.reminder.receiver.ReminderReceiver
 import java.util.Locale
 
@@ -33,24 +35,20 @@ class ReminderConnection : Connection() {
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.O -> getExtras()
             else -> null
         } ?: ReminderConnectionService.lastRequestExtras
-        val msg = extras?.getString(ReminderReceiver.EXTRA_MSG) ?: "Пора!"
+        val msg = extras?.getString(ReminderReceiver.EXTRA_MSG) ?: Constants.DEFAULT_REMINDER_MESSAGE
         val delayMs = (TtsPreferences.getSpeakDelaySeconds(ctx).coerceIn(TtsPreferences.MIN_SPEAK_DELAY, TtsPreferences.MAX_SPEAK_DELAY) * 1000L)
-        val engine = TtsPreferences.getSelectedEnginePackage(ctx)
 
         delayedSpeakRunnable = Runnable {
             delayedSpeakRunnable = null
             if (getState() != Connection.STATE_DISCONNECTED) {
-                startTtsAsCall(ctx, msg, engine)
+                startTtsAsCall(ctx, msg)
             }
         }
         mainHandler.postDelayed(delayedSpeakRunnable!!, delayMs)
     }
 
-    private fun startTtsAsCall(ctx: android.content.Context, message: String, engine: String?) {
-        val am = ctx.getSystemService(android.content.Context.AUDIO_SERVICE) as AudioManager
-        previousAudioMode = am.mode
-        am.mode = AudioManager.MODE_IN_COMMUNICATION
-        am.isSpeakerphoneOn = false
+    private fun startTtsAsCall(ctx: Context, message: String) {
+        previousAudioMode = TtsHelper.setupCallAudioMode(ctx)
 
         val connection = this
         val initListener = TextToSpeech.OnInitListener { status: Int ->
@@ -62,39 +60,29 @@ class ReminderConnection : Connection() {
                     override fun onStart(utteranceId: String?) {}
                     override fun onDone(utteranceId: String?) {
                         mainHandler.post {
-                            connection.finishCallAndTts(am)
+                            connection.finishCallAndTts(ctx)
                         }
                     }
                     override fun onError(utteranceId: String?) {
                         mainHandler.post {
-                            connection.finishCallAndTts(am)
+                            connection.finishCallAndTts(ctx)
                         }
                     }
                 })
-                val params = Bundle().apply {
-                    putString(TextToSpeech.Engine.KEY_PARAM_STREAM, AudioManager.STREAM_VOICE_CALL.toString())
-                }
+                val params = TtsHelper.createVoiceCallParams()
                 ttsRef.speak(message, TextToSpeech.QUEUE_FLUSH, params, "reminder_done")
             } else {
                 mainHandler.post {
-                    connection.finishCallAndTts(am)
+                    connection.finishCallAndTts(ctx)
                 }
             }
         }
-        tts = if (engine != null) {
-            TextToSpeech(ctx, initListener, engine)
-        } else {
-            TextToSpeech(ctx, initListener)
-        }
+        tts = TtsHelper.createTts(ctx, initListener)
     }
 
-    private fun finishCallAndTts(am: AudioManager) {
-        if (previousAudioMode >= 0) {
-            try {
-                am.mode = previousAudioMode
-            } catch (_: Exception) { }
-            previousAudioMode = -1
-        }
+    private fun finishCallAndTts(ctx: Context) {
+        TtsHelper.restoreAudioMode(ctx, previousAudioMode)
+        previousAudioMode = -1
         tts?.shutdown()
         tts = null
         destroy()
@@ -109,7 +97,7 @@ class ReminderConnection : Connection() {
             else -> null
         } ?: ReminderConnectionService.lastRequestExtras
         val id = extras?.getLong(ReminderReceiver.EXTRA_ID, -1L) ?: -1L
-        val msg = extras?.getString(ReminderReceiver.EXTRA_MSG) ?: "Пора!"
+        val msg = extras?.getString(ReminderReceiver.EXTRA_MSG) ?: Constants.DEFAULT_REMINDER_MESSAGE
         if (id >= 0) SnoozeHelper.tryScheduleSnooze(ctx, id, msg)
         destroy()
     }

@@ -351,7 +351,7 @@ fun SettingsScreen(onBack: () -> Unit) {
     var snoozeEnabled by remember { mutableStateOf(ReminderPreferences.getSnoozeEnabled(ctx)) }
     var snoozeRepeats by remember { mutableStateOf(ReminderPreferences.getSnoozeRepeats(ctx).toString()) }
     var snoozeDelayMinutes by remember { mutableStateOf(ReminderPreferences.getSnoozeDelayMinutes(ctx).toString()) }
-    val availableCalendars: List<Pair<Long, String>> = remember { com.example.reminder.CalendarHelper.getAvailableCalendars(ctx) }
+    val availableCalendars: List<Pair<Long, String>> = remember { CalendarHelper.getAvailableCalendars(ctx) }
 
     DisposableEffect(Unit) {
         onDispose {
