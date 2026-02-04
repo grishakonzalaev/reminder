@@ -71,6 +71,10 @@ class ReminderRepository(private val context: Context) {
         calendarMappingDao.getCalendarEventId(reminderId)
     }
 
+    suspend fun isCalendarEventMapped(calendarEventId: Long): Boolean = withContext(Dispatchers.IO) {
+        calendarMappingDao.existsByCalendarEventId(calendarEventId)
+    }
+
     suspend fun setCalendarEventId(reminderId: Long, eventId: Long) = withContext(Dispatchers.IO) {
         val mapping = CalendarEventMapping(reminderId = reminderId, calendarEventId = eventId)
         calendarMappingDao.insert(mapping)

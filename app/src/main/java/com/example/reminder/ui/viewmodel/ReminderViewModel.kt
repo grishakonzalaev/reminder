@@ -73,10 +73,12 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
             val readCalendarId = ReminderPreferences.getReadCalendarId(app)
             val instances = CalendarHelper.queryFutureInstances(app, now, toMillis, readCalendarId)
             for (inst in instances) {
+                if (repo.isCalendarEventMapped(inst.eventId)) continue
                 if (repo.isCalendarInstanceImported(inst.eventId, inst.beginMillis)) continue
                 val message = inst.title.ifBlank { "Событие календаря" }
                 val reminder = repo.addReminder(message, inst.beginMillis)
                 alarmScheduler.schedule(reminder)
+                repo.setCalendarEventId(reminder.id, inst.eventId)
                 repo.addImportedCalendarInstance(inst.eventId, inst.beginMillis)
             }
         }

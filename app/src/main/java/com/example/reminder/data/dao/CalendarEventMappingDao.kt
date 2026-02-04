@@ -12,6 +12,9 @@ interface CalendarEventMappingDao {
     @Query("SELECT calendarEventId FROM calendar_event_mappings WHERE reminderId = :reminderId")
     suspend fun getCalendarEventId(reminderId: Long): Long?
 
+    @Query("SELECT EXISTS(SELECT 1 FROM calendar_event_mappings WHERE calendarEventId = :calendarEventId)")
+    suspend fun existsByCalendarEventId(calendarEventId: Long): Boolean
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(mapping: CalendarEventMapping)
 
