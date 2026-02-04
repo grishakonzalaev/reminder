@@ -80,6 +80,7 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
                 withContext(Dispatchers.IO) {
                     CalendarHelper.insertEvent(app, reminder)?.let { eventId ->
                         repo.setCalendarEventId(reminder.id, eventId)
+                        repo.addImportedCalendarInstance(eventId, timeMillis)
                     }
                 }
             }
@@ -95,9 +96,11 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
             if (ReminderPreferences.getAddToCalendar(app)) {
                 repo.getCalendarEventId(reminder.id)?.let { eventId ->
                     CalendarHelper.updateEvent(app, eventId, updated)
+                    repo.addImportedCalendarInstance(eventId, timeMillis)
                 } ?: run {
                     CalendarHelper.insertEvent(app, updated)?.let { eventId ->
                         repo.setCalendarEventId(reminder.id, eventId)
+                        repo.addImportedCalendarInstance(eventId, timeMillis)
                     }
                 }
             } else {
