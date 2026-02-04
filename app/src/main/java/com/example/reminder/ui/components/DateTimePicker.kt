@@ -25,6 +25,7 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,6 +49,9 @@ import kotlin.math.roundToInt
 class AccessibleFrameLayout(context: Context) : FrameLayout(context) {
     var currentValue: Float = 0f
     var currentLabel: String = ""
+    var currentValueRange: ClosedFloatingPointRange<Float> = 0f..1f
+    var currentWrap: Boolean = false
+    var currentOnValueChange: ((Float) -> Unit)? = null
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         return false
@@ -65,6 +69,7 @@ fun AdjustableValue(
     valueRange: ClosedFloatingPointRange<Float>,
     label: String,
     roleDescription: String,
+    wrap: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val step = 1f
@@ -74,7 +79,9 @@ fun AdjustableValue(
     ) {
         Slider(
             value = value,
-            onValueChange = onValueChange,
+            onValueChange = { newVal ->
+                onValueChange(newVal.coerceIn(valueRange))
+            },
             valueRange = valueRange,
             steps = ((valueRange.endInclusive - valueRange.start) / step - 1).roundToInt().coerceAtLeast(0),
             modifier = Modifier
@@ -88,6 +95,9 @@ fun AdjustableValue(
                 AccessibleFrameLayout(context).apply {
                     currentValue = value
                     currentLabel = label
+                    currentValueRange = valueRange
+                    currentWrap = wrap
+                    currentOnValueChange = onValueChange
                     isFocusable = true
                     isClickable = false
                     importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
@@ -107,22 +117,29 @@ fun AdjustableValue(
 
                         override fun performAccessibilityAction(host: View, action: Int, args: Bundle?): Boolean {
                             val customHost = host as? AccessibleFrameLayout ?: return super.performAccessibilityAction(host, action, args)
+                            val range = customHost.currentValueRange
+                            val shouldWrap = customHost.currentWrap
+                            val valueChangeFn = customHost.currentOnValueChange ?: return super.performAccessibilityAction(host, action, args)
                             when (action) {
                                 AccessibilityNodeInfoCompat.ACTION_SCROLL_FORWARD -> {
                                     val currentVal = customHost.currentValue
-                                    val newValue = (currentVal + step).coerceAtMost(valueRange.endInclusive)
-                                    if (newValue != currentVal) {
-                                        onValueChange(newValue)
-                                        return true
+                                    val newValue = if (shouldWrap && currentVal >= range.endInclusive) {
+                                        range.start
+                                    } else {
+                                        (currentVal + step).coerceAtMost(range.endInclusive)
                                     }
+                                    valueChangeFn(newValue)
+                                    return true
                                 }
                                 AccessibilityNodeInfoCompat.ACTION_SCROLL_BACKWARD -> {
                                     val currentVal = customHost.currentValue
-                                    val newValue = (currentVal - step).coerceAtLeast(valueRange.start)
-                                    if (newValue != currentVal) {
-                                        onValueChange(newValue)
-                                        return true
+                                    val newValue = if (shouldWrap && currentVal <= range.start) {
+                                        range.endInclusive
+                                    } else {
+                                        (currentVal - step).coerceAtLeast(range.start)
                                     }
+                                    valueChangeFn(newValue)
+                                    return true
                                 }
                             }
                             return super.performAccessibilityAction(host, action, args)
@@ -134,8 +151,10 @@ fun AdjustableValue(
                 (view as? AccessibleFrameLayout)?.let {
                     it.currentValue = value
                     it.currentLabel = label
+                    it.currentValueRange = valueRange
+                    it.currentWrap = wrap
+                    it.currentOnValueChange = onValueChange
                     view.contentDescription = label
-                    view.announceForAccessibility(label)
                 }
             },
             modifier = Modifier
@@ -166,11 +185,29 @@ fun DateTimePickerSliders(
 
     val locale = Locale.getDefault()
     val dateFormatSymbols = remember(locale) { DateFormatSymbols.getInstance(locale) }
-    val monthNamesShort = remember(dateFormatSymbols) { dateFormatSymbols.shortMonths.take(12) }
-    val monthNamesFull = remember(dateFormatSymbols) { dateFormatSymbols.months.take(12) }
-    val dayNames = remember(dateFormatSymbols) { dateFormatSymbols.weekdays.drop(1) }
+
+    val monthNamesShort = remember(locale) {
+        (0..11).map { monthIndex ->
+            SimpleDateFormat("MMM", locale).apply {
+                val cal = Calendar.getInstance()
+                cal.set(Calendar.MONTH, monthIndex)
+                this.calendar = cal
+            }.format(Calendar.getInstance().apply { set(Calendar.MONTH, monthIndex) }.time)
+        }
+    }
+    val monthNamesFull = remember(locale) {
+        (0..11).map { monthIndex ->
+            SimpleDateFormat("LLLL", locale).apply {
+                val cal = Calendar.getInstance()
+                cal.set(Calendar.MONTH, monthIndex)
+                this.calendar = cal
+            }.format(Calendar.getInstance().apply { set(Calendar.MONTH, monthIndex) }.time)
+        }.map { it.replaceFirstChar { char -> char.uppercase() } }
+    }
 
     val dateFormatter = remember(locale) { SimpleDateFormat("EEEE, d MMMM yyyy", locale) }
+    val currentYear = remember { Calendar.getInstance().get(Calendar.YEAR) }
+    val yearRange = currentYear.toFloat()..(currentYear + 10).toFloat()
 
     fun updateTime() {
         val cal = Calendar.getInstance().apply {
@@ -184,6 +221,11 @@ fun DateTimePickerSliders(
         }
         onTimeChanged(cal.timeInMillis)
     }
+
+    val maxDay = Calendar.getInstance().apply {
+        clear()
+        set(year.toInt(), month.toInt(), 1)
+    }.getActualMaximum(Calendar.DAY_OF_MONTH).toFloat()
 
     val currentCal = remember(day, month, year, hour, minute) {
         Calendar.getInstance().apply {
@@ -236,9 +278,14 @@ fun DateTimePickerSliders(
                     year = year,
                     hour = hour,
                     minute = minute,
+                    maxDay = maxDay,
+                    yearRange = yearRange,
                     monthNamesShort = monthNamesShort,
                     monthNamesFull = monthNamesFull,
-                    onDayChange = { day = it; updateTime() },
+                    onDayChange = { newDay ->
+                        day = newDay.coerceAtMost(maxDay)
+                        updateTime()
+                    },
                     onMonthChange = { month = it; updateTime() },
                     onYearChange = { year = it; updateTime() },
                     onHourChange = { hour = it; updateTime() },
@@ -252,6 +299,7 @@ fun DateTimePickerSliders(
                     year = year.toInt(),
                     hour = hour.toInt(),
                     minute = minute.toInt(),
+                    yearRange = yearRange,
                     monthNamesFull = monthNamesFull,
                     onDayChange = { day = it.toFloat(); updateTime() },
                     onMonthChange = { month = it.toFloat(); updateTime() },
@@ -271,6 +319,8 @@ private fun SliderDateTimePicker(
     year: Float,
     hour: Float,
     minute: Float,
+    maxDay: Float,
+    yearRange: ClosedFloatingPointRange<Float>,
     monthNamesShort: List<String>,
     monthNamesFull: List<String>,
     onDayChange: (Float) -> Unit,
@@ -286,103 +336,89 @@ private fun SliderDateTimePicker(
     val minuteRole = stringResource(R.string.picker_minute)
 
     Column {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = day.toInt().toString().padStart(2, '0'),
-                style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier
-                    .width(60.dp)
-                    .clearAndSetSemantics { }
-            )
-            AdjustableValue(
-                value = day,
-                onValueChange = onDayChange,
-                valueRange = 1f..31f,
-                label = day.toInt().toString().padStart(2, '0'),
-                roleDescription = dayRole,
-                modifier = Modifier.weight(1f)
-            )
-        }
-
+        DateTimeSliderRow(
+            value = day.coerceAtMost(maxDay),
+            displayText = day.toInt().coerceAtMost(maxDay.toInt()).toString(),
+            valueRange = 1f..maxDay,
+            roleDescription = dayRole,
+            label = day.toInt().coerceAtMost(maxDay.toInt()).toString(),
+            wrap = true,
+            onValueChange = onDayChange
+        )
         Spacer(modifier = Modifier.height(8.dp))
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = monthNamesShort[month.toInt()],
-                style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier
-                    .width(60.dp)
-                    .clearAndSetSemantics { }
-            )
-            AdjustableValue(
-                value = month,
-                onValueChange = onMonthChange,
-                valueRange = 0f..11f,
-                label = monthNamesFull[month.toInt()],
-                roleDescription = monthRole,
-                modifier = Modifier.weight(1f)
-            )
-        }
-
+        DateTimeSliderRow(
+            value = month,
+            displayText = monthNamesShort[month.toInt()],
+            valueRange = 0f..11f,
+            roleDescription = monthRole,
+            label = monthNamesFull[month.toInt()],
+            wrap = true,
+            onValueChange = onMonthChange
+        )
         Spacer(modifier = Modifier.height(8.dp))
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = year.toInt().toString(),
-                style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier
-                    .width(60.dp)
-                    .clearAndSetSemantics { }
-            )
-            AdjustableValue(
-                value = year,
-                onValueChange = onYearChange,
-                valueRange = Calendar.getInstance().get(Calendar.YEAR).toFloat()..(Calendar.getInstance().get(Calendar.YEAR) + 10).toFloat(),
-                label = year.toInt().toString(),
-                roleDescription = yearRole,
-                modifier = Modifier.weight(1f)
-            )
-        }
-
+        DateTimeSliderRow(
+            value = year,
+            displayText = year.toInt().toString(),
+            valueRange = yearRange,
+            roleDescription = yearRole,
+            label = year.toInt().toString(),
+            wrap = false,
+            onValueChange = onYearChange
+        )
         Spacer(modifier = Modifier.height(16.dp))
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = hour.toInt().toString().padStart(2, '0'),
-                style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier
-                    .width(60.dp)
-                    .clearAndSetSemantics { }
-            )
-            AdjustableValue(
-                value = hour,
-                onValueChange = onHourChange,
-                valueRange = 0f..23f,
-                label = hour.toInt().toString().padStart(2, '0'),
-                roleDescription = hourRole,
-                modifier = Modifier.weight(1f)
-            )
-        }
-
+        DateTimeSliderRow(
+            value = hour,
+            displayText = hour.toInt().toString().padStart(2, '0'),
+            valueRange = 0f..23f,
+            roleDescription = hourRole,
+            label = hour.toInt().toString().padStart(2, '0'),
+            wrap = true,
+            onValueChange = onHourChange
+        )
         Spacer(modifier = Modifier.height(8.dp))
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = minute.toInt().toString().padStart(2, '0'),
-                style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier
-                    .width(60.dp)
-                    .clearAndSetSemantics { }
-            )
-            AdjustableValue(
-                value = minute,
-                onValueChange = onMinuteChange,
-                valueRange = 0f..59f,
-                label = minute.toInt().toString().padStart(2, '0'),
-                roleDescription = minuteRole,
-                modifier = Modifier.weight(1f)
-            )
-        }
+        DateTimeSliderRow(
+            value = minute,
+            displayText = minute.toInt().toString().padStart(2, '0'),
+            valueRange = 0f..59f,
+            roleDescription = minuteRole,
+            label = minute.toInt().toString().padStart(2, '0'),
+            wrap = true,
+            onValueChange = onMinuteChange
+        )
+    }
+}
+
+@Composable
+private fun DateTimeSliderRow(
+    value: Float,
+    displayText: String,
+    valueRange: ClosedFloatingPointRange<Float>,
+    roleDescription: String,
+    label: String,
+    wrap: Boolean = false,
+    onValueChange: (Float) -> Unit
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = displayText,
+            style = MaterialTheme.typography.headlineMedium,
+            modifier = Modifier
+                .width(60.dp)
+                .clearAndSetSemantics { }
+        )
+        AdjustableValue(
+            value = value,
+            onValueChange = onValueChange,
+            valueRange = valueRange,
+            label = label,
+            roleDescription = roleDescription,
+            wrap = wrap,
+            modifier = Modifier.weight(1f)
+        )
     }
 }
 
@@ -393,6 +429,7 @@ private fun TextDateTimePicker(
     year: Int,
     hour: Int,
     minute: Int,
+    yearRange: ClosedFloatingPointRange<Float>,
     monthNamesFull: List<String>,
     onDayChange: (Int) -> Unit,
     onMonthChange: (Int) -> Unit,
@@ -400,27 +437,17 @@ private fun TextDateTimePicker(
     onHourChange: (Int) -> Unit,
     onMinuteChange: (Int) -> Unit
 ) {
-    var dayText by remember(day) { mutableStateOf(day.toString()) }
-    var yearText by remember(year) { mutableStateOf(year.toString()) }
-    var hourText by remember(hour) { mutableStateOf(hour.toString().padStart(2, '0')) }
-    var minuteText by remember(minute) { mutableStateOf(minute.toString().padStart(2, '0')) }
     var showMonthDropdown by remember { mutableStateOf(false) }
 
     Column {
-        OutlinedTextField(
-            value = dayText,
-            onValueChange = { new ->
-                if (new.isEmpty() || (new.all { it.isDigit() } && new.length <= 2)) {
-                    dayText = new
-                    new.toIntOrNull()?.coerceIn(1, 31)?.let(onDayChange)
-                }
-            },
-            label = { Text(stringResource(R.string.picker_day)) },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            singleLine = true,
+        NumberTextField(
+            value = day,
+            label = stringResource(R.string.picker_day),
+            range = 1..31,
+            maxLength = 2,
+            onValueChange = onDayChange,
             modifier = Modifier.fillMaxWidth()
         )
-
         Spacer(modifier = Modifier.height(8.dp))
 
         Box {
@@ -448,56 +475,69 @@ private fun TextDateTimePicker(
                 }
             }
         }
-
         Spacer(modifier = Modifier.height(8.dp))
 
-        OutlinedTextField(
-            value = yearText,
-            onValueChange = { new ->
-                if (new.isEmpty() || (new.all { it.isDigit() } && new.length <= 4)) {
-                    yearText = new
-                    new.toIntOrNull()?.coerceIn(Calendar.getInstance().get(Calendar.YEAR), Calendar.getInstance().get(Calendar.YEAR) + 10)?.let(onYearChange)
-                }
-            },
-            label = { Text(stringResource(R.string.picker_year)) },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            singleLine = true,
+        NumberTextField(
+            value = year,
+            label = stringResource(R.string.picker_year),
+            range = yearRange.start.toInt()..yearRange.endInclusive.toInt(),
+            maxLength = 4,
+            onValueChange = onYearChange,
             modifier = Modifier.fillMaxWidth()
         )
-
         Spacer(modifier = Modifier.height(16.dp))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            OutlinedTextField(
-                value = hourText,
-                onValueChange = { new ->
-                    if (new.isEmpty() || (new.all { it.isDigit() } && new.length <= 2)) {
-                        hourText = new
-                        new.toIntOrNull()?.coerceIn(0, 23)?.let(onHourChange)
-                    }
-                },
-                label = { Text(stringResource(R.string.picker_hour)) },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true,
+            NumberTextField(
+                value = hour,
+                label = stringResource(R.string.picker_hour),
+                range = 0..23,
+                maxLength = 2,
+                padStart = 2,
+                onValueChange = onHourChange,
                 modifier = Modifier.weight(1f)
             )
-
-            OutlinedTextField(
-                value = minuteText,
-                onValueChange = { new ->
-                    if (new.isEmpty() || (new.all { it.isDigit() } && new.length <= 2)) {
-                        minuteText = new
-                        new.toIntOrNull()?.coerceIn(0, 59)?.let(onMinuteChange)
-                    }
-                },
-                label = { Text(stringResource(R.string.picker_minute)) },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true,
+            NumberTextField(
+                value = minute,
+                label = stringResource(R.string.picker_minute),
+                range = 0..59,
+                maxLength = 2,
+                padStart = 2,
+                onValueChange = onMinuteChange,
                 modifier = Modifier.weight(1f)
             )
         }
     }
+}
+
+@Composable
+private fun NumberTextField(
+    value: Int,
+    label: String,
+    range: IntRange,
+    maxLength: Int,
+    padStart: Int = 0,
+    onValueChange: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var text by remember(value) {
+        mutableStateOf(if (padStart > 0) value.toString().padStart(padStart, '0') else value.toString())
+    }
+
+    OutlinedTextField(
+        value = text,
+        onValueChange = { new ->
+            if (new.isEmpty() || (new.all { it.isDigit() } && new.length <= maxLength)) {
+                text = new
+                new.toIntOrNull()?.coerceIn(range)?.let(onValueChange)
+            }
+        },
+        label = { Text(label) },
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        singleLine = true,
+        modifier = modifier
+    )
 }

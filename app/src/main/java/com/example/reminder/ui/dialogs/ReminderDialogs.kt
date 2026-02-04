@@ -53,11 +53,6 @@ fun ReminderDialog(
                     minLines = 2
                 )
                 Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    stringResource(R.string.dialog_time, formattedTime),
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Spacer(modifier = Modifier.height(8.dp))
                 DateTimePickerSliders(
                     timeMillis = timeMillis,
                     onTimeChanged = { timeMillis = it }
