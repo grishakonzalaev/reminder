@@ -61,9 +61,17 @@ jobs:
               --generate-notes \
               --repo "$GITHUB_REPOSITORY"
           fi
+          UPLOADED=0
           for f in app/build/outputs/apk/release/*.apk app/build/outputs/bundle/release/*.aab; do
             if [ -f "$f" ]; then
               echo "Uploading $f..."
-              gh release upload "$VERSION" "$f" --repo "$GITHUB_REPOSITORY"
+              gh release upload "$VERSION" "$f" --repo "$GITHUB_REPOSITORY" --clobber
+              UPLOADED=$((UPLOADED + 1))
             fi
           done
+          if [ "$UPLOADED" -eq 0 ]; then
+            echo "No artifacts found. Build outputs:"
+            ls -laR app/build/outputs/ 2>/dev/null || true
+            exit 1
+          fi
+          echo "Uploaded $UPLOADED file(s)."
