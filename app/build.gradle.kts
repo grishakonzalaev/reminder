@@ -1,6 +1,35 @@
+import java.util.concurrent.TimeUnit
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+}
+
+fun getVersionNameFromGit(): String {
+    return try {
+        val proc = ProcessBuilder("git", "describe", "--tags", "--abbrev=0")
+            .directory(rootProject.projectDir)
+            .redirectError(ProcessBuilder.Redirect.PIPE)
+            .start()
+        proc.waitFor(5, TimeUnit.SECONDS)
+        val out = proc.inputStream.bufferedReader().readText().trim()
+        if (out.isNotEmpty()) out.removePrefix("v") else "0.0.1"
+    } catch (_: Exception) {
+        "0.0.1"
+    }
+}
+
+fun getVersionCodeFromGit(): Int {
+    return try {
+        val proc = ProcessBuilder("git", "rev-list", "--count", "HEAD")
+            .directory(rootProject.projectDir)
+            .redirectError(ProcessBuilder.Redirect.PIPE)
+            .start()
+        proc.waitFor(5, TimeUnit.SECONDS)
+        proc.inputStream.bufferedReader().readText().trim().toIntOrNull() ?: 1
+    } catch (_: Exception) {
+        1
+    }
 }
 
 android {
@@ -11,8 +40,8 @@ android {
         applicationId = "com.example.reminder"
         minSdk = 24
         targetSdk = 34
-        versionCode = 4
-        versionName = "1.4"
+        versionCode = getVersionCodeFromGit()
+        versionName = getVersionNameFromGit()
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
