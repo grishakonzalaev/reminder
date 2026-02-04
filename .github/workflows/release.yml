@@ -62,6 +62,6 @@ jobs:
           for f in app/build/outputs/apk/release/*.apk app/build/outputs/bundle/release/*.aab; do
             if [ -f "$f" ]; then
               echo "Uploading $f..."
-              gh release upload "$VERSION" "$f" --repo "$GITHUB_REPOSITORY" --retry 3
+              gh release upload "$VERSION" "$f" --repo "$GITHUB_REPOSITORY"
             fi
           done
