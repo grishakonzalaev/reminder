@@ -55,10 +55,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
-          gh release create "$VERSION" \
-            --title "Release $VERSION" \
-            --generate-notes \
-            --repo "$GITHUB_REPOSITORY"
+          if ! gh release view "$VERSION" --repo "$GITHUB_REPOSITORY" &>/dev/null; then
+            gh release create "$VERSION" \
+              --title "Release $VERSION" \
+              --generate-notes \
+              --repo "$GITHUB_REPOSITORY"
+          fi
           for f in app/build/outputs/apk/release/*.apk app/build/outputs/bundle/release/*.aab; do
             if [ -f "$f" ]; then
               echo "Uploading $f..."
