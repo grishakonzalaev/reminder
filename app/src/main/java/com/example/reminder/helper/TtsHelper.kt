@@ -8,6 +8,16 @@ import android.speech.tts.TextToSpeech
 import com.example.reminder.data.preferences.TtsPreferences
 
 object TtsHelper {
+
+    private val MUSIC_STREAM_OEMS = setOf(
+        "HONOR", "HUAWEI", "HISILICON", "XIAOMI", "REDMI", "POCO",
+        "OPPO", "REALME", "VIVO", "ONEPLUS", "MEIZU"
+    )
+
+    /** true, если для TTS в режиме звонка лучше сразу использовать основной динамик (Honor, Xiaomi и др.). */
+    fun useMusicStreamForCall(context: Context): Boolean {
+        return Build.MANUFACTURER.uppercase() in MUSIC_STREAM_OEMS
+    }
     fun createTts(context: Context, listener: TextToSpeech.OnInitListener): TextToSpeech {
         val engine = TtsPreferences.getSelectedEnginePackage(context)
         return if (engine != null) {
@@ -40,6 +50,13 @@ object TtsHelper {
     fun createVoiceCallParams(): Bundle {
         return Bundle().apply {
             putString(TextToSpeech.Engine.KEY_PARAM_STREAM, AudioManager.STREAM_VOICE_CALL.toString())
+        }
+    }
+
+    /** Параметры TTS в медиа-поток (динамик). Fallback, когда STREAM_VOICE_CALL не даёт звука (Honor, часть Xiaomi). */
+    fun createMusicStreamParams(): Bundle {
+        return Bundle().apply {
+            putString(TextToSpeech.Engine.KEY_PARAM_STREAM, AudioManager.STREAM_MUSIC.toString())
         }
     }
 }

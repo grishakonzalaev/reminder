@@ -70,4 +70,7 @@
     <string name="dialog_tts_title">Text-to-Speech</string>
     <string name="content_description_edit">Edit</string>
     <string name="content_description_delete">Delete</string>
+    <string name="settings_battery_optimization">Battery optimization</string>
+    <string name="settings_battery_optimization_description">On Honor, Xiaomi and some other devices, open app settings below, then tap Battery and disable optimization so reminders and calendar sync work in the background.</string>
+    <string name="settings_battery_optimization_open">Open app settings</string>
 </resources>

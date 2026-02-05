@@ -70,4 +70,7 @@
     <string name="dialog_tts_title">Синтезатор речи</string>
     <string name="content_description_edit">Изменить</string>
     <string name="content_description_delete">Удалить</string>
+    <string name="settings_battery_optimization">Оптимизация батареи</string>
+    <string name="settings_battery_optimization_description">На Honor, Xiaomi и др. откройте настройки приложения по кнопке ниже, затем «Батарея» → отключите оптимизацию, чтобы напоминания и календарь работали в фоне.</string>
+    <string name="settings_battery_optimization_open">Открыть настройки приложения</string>
 </resources>

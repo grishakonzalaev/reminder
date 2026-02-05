@@ -19,7 +19,7 @@ class AlarmScheduler(private val context: Context) {
             reminder.id.toInt(),
             intent
         )
-        AlarmHelper.scheduleExactAlarm(context, reminder.timeMillis, pending)
+        AlarmHelper.scheduleAlarmClock(context, reminder.timeMillis, pending)
     }
 
     fun cancel(reminderId: Long) {

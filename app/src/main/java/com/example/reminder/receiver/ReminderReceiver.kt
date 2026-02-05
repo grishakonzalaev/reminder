@@ -13,6 +13,7 @@ import com.example.reminder.app.ReminderApp
 import com.example.reminder.data.preferences.TtsPreferences
 import com.example.reminder.helper.NotificationHelper
 import com.example.reminder.helper.PendingIntentHelper
+import com.example.reminder.service.ReminderService
 import com.example.reminder.ui.activity.CallActivity
 
 class ReminderReceiver : BroadcastReceiver() {
@@ -39,41 +40,48 @@ class ReminderReceiver : BroadcastReceiver() {
                 }
             }
 
-            // Fallback: уведомление и fullScreenIntent (без API звонков)
-            val callIntent = Intent(context, CallActivity::class.java).apply {
-                putExtra(CallActivity.EXTRA_MSG, message)
-                putExtra(CallActivity.EXTRA_ID, id)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NO_USER_ACTION)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-                    @Suppress("WrongConstant")
-                    addFlags(0x00080000 or 0x00040000)
-                }
+            // Fallback: запуск через foreground-сервис, чтобы обойти ограничения
+            // на старт активности из фона (Honor, Xiaomi, Android 10+)
+            val serviceIntent = Intent(context, ReminderService::class.java).apply {
+                putExtra(EXTRA_ID, id)
+                putExtra(EXTRA_MSG, message)
             }
             try {
-                context.startActivity(callIntent)
-            } catch (_: Exception) { }
-
-            val channelId = NotificationHelper.createReminderCallChannel(context)
-            val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-
-            val fullScreenPending = PendingIntentHelper.createActivity(
-                context,
-                (id and 0x7FFFFFFF).toInt(),
-                callIntent
-            )
-
-            val notification = NotificationCompat.Builder(context, channelId)
-                .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-                .setContentTitle("Напоминание")
-                .setContentText(message)
-                .setContentIntent(fullScreenPending)
-                .setFullScreenIntent(fullScreenPending, true)
-                .setAutoCancel(true)
-                .setPriority(NotificationCompat.PRIORITY_MAX)
-                .setCategory(NotificationCompat.CATEGORY_CALL)
-                .build()
-
-            manager.notify((id and 0x7FFFFFFF).toInt(), notification)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(serviceIntent)
+                } else {
+                    context.startService(serviceIntent)
+                }
+            } catch (_: Exception) {
+                // Если сервис не запустился — показываем уведомление с fullScreenIntent
+                val callIntent = Intent(context, CallActivity::class.java).apply {
+                    putExtra(CallActivity.EXTRA_MSG, message)
+                    putExtra(CallActivity.EXTRA_ID, id)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NO_USER_ACTION)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                        @Suppress("WrongConstant")
+                        addFlags(0x00080000 or 0x00040000)
+                    }
+                }
+                val channelId = NotificationHelper.createReminderCallChannel(context)
+                val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                val fullScreenPending = PendingIntentHelper.createActivity(
+                    context,
+                    (id and 0x7FFFFFFF).toInt(),
+                    callIntent
+                )
+                val notification = NotificationCompat.Builder(context, channelId)
+                    .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+                    .setContentTitle("Напоминание")
+                    .setContentText(message)
+                    .setContentIntent(fullScreenPending)
+                    .setFullScreenIntent(fullScreenPending, true)
+                    .setAutoCancel(true)
+                    .setPriority(NotificationCompat.PRIORITY_MAX)
+                    .setCategory(NotificationCompat.CATEGORY_CALL)
+                    .build()
+                manager.notify((id and 0x7FFFFFFF).toInt(), notification)
+            }
         } catch (_: Throwable) { }
     }
 

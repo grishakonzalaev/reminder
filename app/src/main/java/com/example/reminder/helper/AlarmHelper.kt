@@ -6,6 +6,10 @@ import android.content.Context
 import android.os.Build
 
 object AlarmHelper {
+    /**
+     * Точный будильник для периодических задач (например синхронизация календаря).
+     * На агрессивных OEM (Honor, Xiaomi) может задерживаться при оптимизации батареи.
+     */
     fun scheduleExactAlarm(
         context: Context,
         triggerAtMillis: Long,
@@ -21,6 +25,25 @@ object AlarmHelper {
             }
         } else {
             alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+        }
+    }
+
+    /**
+     * Будильник через setAlarmClock — максимально надёжен в Doze и на Honor/Xiaomi:
+     * система не откладывает доставку и показывает иконку будильника в статус-баре.
+     * Используется для срабатывания напоминаний (звонок/экран).
+     */
+    fun scheduleAlarmClock(
+        context: Context,
+        triggerAtMillis: Long,
+        pendingIntent: PendingIntent
+    ) {
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            val info = AlarmManager.AlarmClockInfo(triggerAtMillis, null)
+            alarmManager.setAlarmClock(info, pendingIntent)
+        } else {
+            scheduleExactAlarm(context, triggerAtMillis, pendingIntent)
         }
     }
 
