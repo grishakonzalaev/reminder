@@ -55,6 +55,7 @@ import com.example.reminder.data.preferences.ReminderPreferences
 import com.example.reminder.data.preferences.TtsPreferences
 import com.example.reminder.helper.CalendarHelper
 import com.example.reminder.scheduler.CalendarSyncScheduler
+import com.example.reminder.service.CalendarSyncForegroundService
 import java.util.Locale
 
 @Composable
@@ -70,6 +71,7 @@ fun SettingsScreen(onBack: () -> Unit) {
     var themeMode by remember { mutableStateOf(ReminderPreferences.getThemeMode(ctx)) }
     var addToCalendar by remember { mutableStateOf(ReminderPreferences.getAddToCalendar(ctx)) }
     var syncFromCalendar by remember { mutableStateOf(ReminderPreferences.getSyncFromCalendar(ctx)) }
+    var calendarSyncForeground by remember { mutableStateOf(ReminderPreferences.getCalendarSyncForeground(ctx)) }
     var writeCalendarId by remember { mutableStateOf(ReminderPreferences.getWriteCalendarId(ctx)) }
     var readCalendarId by remember { mutableStateOf(ReminderPreferences.getReadCalendarId(ctx)) }
     var showWriteCalendarDialog by remember { mutableStateOf(false) }
@@ -223,6 +225,30 @@ fun SettingsScreen(onBack: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 4.dp)
             )
+            if (syncFromCalendar) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(stringResource(R.string.settings_calendar_sync_foreground), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                    Switch(
+                        checked = calendarSyncForeground,
+                        onCheckedChange = {
+                            calendarSyncForeground = it
+                            ReminderPreferences.setCalendarSyncForeground(ctx, it)
+                            if (it) CalendarSyncScheduler.scheduleIfEnabled(ctx) else ctx.stopService(Intent(ctx, CalendarSyncForegroundService::class.java))
+                        }
+                    )
+                }
+                Text(
+                    stringResource(R.string.settings_calendar_sync_foreground_description),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
             val writeCalendarLabel = if (writeCalendarId == 0L) ctx.getString(R.string.calendar_first_available) else availableCalendars.find { (id, _) -> id == writeCalendarId }?.second ?: ctx.getString(R.string.calendar_id, writeCalendarId)
             val readCalendarLabel = if (readCalendarId == 0L) ctx.getString(R.string.calendar_all) else availableCalendars.find { (id, _) -> id == readCalendarId }?.second ?: ctx.getString(R.string.calendar_id, readCalendarId)
             Spacer(modifier = Modifier.height(16.dp))

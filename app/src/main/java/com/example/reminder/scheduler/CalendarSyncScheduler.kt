@@ -2,6 +2,7 @@ package com.example.reminder.scheduler
 
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
@@ -10,6 +11,7 @@ import com.example.reminder.data.preferences.ReminderPreferences
 import com.example.reminder.helper.AlarmHelper
 import com.example.reminder.helper.PendingIntentHelper
 import com.example.reminder.receiver.CalendarSyncReceiver
+import com.example.reminder.service.CalendarSyncForegroundService
 import com.example.reminder.worker.CalendarSyncWorker
 import java.util.concurrent.TimeUnit
 
@@ -25,6 +27,14 @@ object CalendarSyncScheduler {
         val app = context.applicationContext
         scheduleNext(app)
         scheduleWorkManager(app)
+        if (ReminderPreferences.getCalendarSyncForeground(app)) {
+            val intent = Intent(app, CalendarSyncForegroundService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                app.startForegroundService(intent)
+            } else {
+                app.startService(intent)
+            }
+        }
     }
 
     /** Планирует следующий запуск через 30 секунд. Вызывается из ресивера и при включении опции. */
@@ -54,6 +64,7 @@ object CalendarSyncScheduler {
         )
         AlarmHelper.cancelAlarm(app, pending)
         WorkManager.getInstance(app).cancelUniqueWork(CalendarSyncWorker.WORK_NAME)
+        app.stopService(Intent(app, CalendarSyncForegroundService::class.java))
     }
 
     private fun scheduleWorkManager(context: Context) {

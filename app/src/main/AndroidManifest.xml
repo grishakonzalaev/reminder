@@ -67,5 +67,14 @@
                 android:name="android.app.FOREGROUND_SERVICE_SPECIAL_USE"
                 android:value="Показ экрана звонка при срабатывании напоминания." />
         </service>
+
+        <service
+            android:name=".service.CalendarSyncForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <meta-data
+                android:name="android.app.FOREGROUND_SERVICE_SPECIAL_USE"
+                android:value="Синхронизация календаря для напоминаний в фоне (Honor, Xiaomi)." />
+        </service>
     </application>
 </manifest>

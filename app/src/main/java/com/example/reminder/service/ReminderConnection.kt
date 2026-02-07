@@ -1,6 +1,7 @@
 package com.example.reminder.service
 
 import android.content.Context
+import android.content.Intent
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
@@ -16,6 +17,7 @@ import com.example.reminder.data.preferences.TtsPreferences
 import com.example.reminder.helper.SnoozeHelper
 import com.example.reminder.helper.TtsHelper
 import com.example.reminder.receiver.ReminderReceiver
+import com.example.reminder.ui.activity.CallActivity
 import java.util.Locale
 
 /**
@@ -42,6 +44,21 @@ class ReminderConnection : Connection() {
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.O -> getExtras()
             else -> null
         } ?: ReminderConnectionService.lastRequestExtras
+
+        if (extras?.getBoolean(ReminderReceiver.EXTRA_OPEN_CALL_ACTIVITY_ON_ANSWER, false) == true) {
+            val id = extras.getLong(ReminderReceiver.EXTRA_ID, -1L)
+            val msg = extras.getString(ReminderReceiver.EXTRA_MSG) ?: Constants.DEFAULT_REMINDER_MESSAGE
+            val callIntent = Intent(ctx, CallActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NO_USER_ACTION)
+                putExtra(CallActivity.EXTRA_MSG, msg)
+                putExtra(CallActivity.EXTRA_ID, id)
+                putExtra(CallActivity.EXTRA_ANSWERED_BY_HEADSET, true)
+            }
+            ctx.startActivity(callIntent)
+            destroy()
+            return
+        }
+
         val msg = extras?.getString(ReminderReceiver.EXTRA_MSG) ?: Constants.DEFAULT_REMINDER_MESSAGE
         val delayMs = (TtsPreferences.getSpeakDelaySeconds(ctx).coerceIn(TtsPreferences.MIN_SPEAK_DELAY, TtsPreferences.MAX_SPEAK_DELAY) * 1000L)
 

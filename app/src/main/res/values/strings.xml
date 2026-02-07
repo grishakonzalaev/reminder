@@ -41,6 +41,8 @@
     <string name="settings_add_to_calendar_description">When enabled, each reminder is created as an event in Android calendar.</string>
     <string name="settings_sync_from_calendar">Read calendar and add events as reminders</string>
     <string name="settings_sync_from_calendar_description">When enabled, the app reads the calendar every 30 seconds and adds future events (30 days ahead) to the reminder list.</string>
+    <string name="settings_calendar_sync_foreground">Reliable sync (notification in shade)</string>
+    <string name="settings_calendar_sync_foreground_description">Shows a persistent notification and keeps calendar sync running on Honor, Xiaomi and similar devices.</string>
     <string name="settings_write_calendar">Calendar for writing reminders</string>
     <string name="settings_read_calendar">Calendar for reading events</string>
     <string name="calendar_first_available">First Available</string>

@@ -13,7 +13,6 @@ import com.example.reminder.app.ReminderApp
 import com.example.reminder.data.preferences.TtsPreferences
 import com.example.reminder.helper.NotificationHelper
 import com.example.reminder.helper.PendingIntentHelper
-import com.example.reminder.service.ReminderService
 import com.example.reminder.ui.activity.CallActivity
 
 class ReminderReceiver : BroadcastReceiver() {
@@ -23,8 +22,10 @@ class ReminderReceiver : BroadcastReceiver() {
             val message = intent.getStringExtra(EXTRA_MSG) ?: Constants.DEFAULT_REMINDER_MESSAGE
             val useCallApi = TtsPreferences.getUseCallApi(context)
 
-            // При включённой опции «Использовать API звонков» — доставляем через Telecom (интерфейс звонков, звук через звонок)
-            if (useCallApi && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            // Показываем входящий звонок, если аккаунт включён: можно ответить с гарнитуры.
+            // При включённом API — TTS в интерфейсе звонка (разговорный динамик).
+            // При выключенном API — по ответу открываем экран напоминалки с TTS через основной динамик.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 val app = context.applicationContext as? ReminderApp
                 val handle = app?.phoneAccountHandle
                 if (handle != null) {
@@ -32,61 +33,52 @@ class ReminderReceiver : BroadcastReceiver() {
                     val extras = Bundle().apply {
                         putLong(EXTRA_ID, id)
                         putString(EXTRA_MSG, message)
+                        putBoolean(EXTRA_OPEN_CALL_ACTIVITY_ON_ANSWER, !useCallApi)
                     }
                     try {
                         telecomManager.addNewIncomingCall(handle, extras)
-                        return // Успех — система покажет входящий звонок, TTS пойдёт через звонок
+                        return
                     } catch (_: Exception) { }
                 }
             }
 
-            // Fallback: запуск через foreground-сервис, чтобы обойти ограничения
-            // на старт активности из фона (Honor, Xiaomi, Android 10+)
-            val serviceIntent = Intent(context, ReminderService::class.java).apply {
-                putExtra(EXTRA_ID, id)
-                putExtra(EXTRA_MSG, message)
-            }
-            try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    context.startForegroundService(serviceIntent)
-                } else {
-                    context.startService(serviceIntent)
+            // API звонков выключен: показываем уведомление с fullScreenIntent.
+            // Старт активности из фона (ReminderService -> startActivity) на Android 10+ блокируется,
+            // поэтому используем fullScreenIntent — система сама покажет экран при получении уведомления.
+            val callIntent = Intent(context, CallActivity::class.java).apply {
+                putExtra(CallActivity.EXTRA_MSG, message)
+                putExtra(CallActivity.EXTRA_ID, id)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NO_USER_ACTION)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                    @Suppress("WrongConstant")
+                    addFlags(0x00080000 or 0x00040000)
                 }
-            } catch (_: Exception) {
-                // Если сервис не запустился — показываем уведомление с fullScreenIntent
-                val callIntent = Intent(context, CallActivity::class.java).apply {
-                    putExtra(CallActivity.EXTRA_MSG, message)
-                    putExtra(CallActivity.EXTRA_ID, id)
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NO_USER_ACTION)
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-                        @Suppress("WrongConstant")
-                        addFlags(0x00080000 or 0x00040000)
-                    }
-                }
-                val channelId = NotificationHelper.createReminderCallChannel(context)
-                val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                val fullScreenPending = PendingIntentHelper.createActivity(
-                    context,
-                    (id and 0x7FFFFFFF).toInt(),
-                    callIntent
-                )
-                val notification = NotificationCompat.Builder(context, channelId)
-                    .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-                    .setContentTitle("Напоминание")
-                    .setContentText(message)
-                    .setContentIntent(fullScreenPending)
-                    .setFullScreenIntent(fullScreenPending, true)
-                    .setAutoCancel(true)
-                    .setPriority(NotificationCompat.PRIORITY_MAX)
-                    .setCategory(NotificationCompat.CATEGORY_CALL)
-                    .build()
-                manager.notify((id and 0x7FFFFFFF).toInt(), notification)
             }
+            val channelId = NotificationHelper.createReminderCallChannel(context)
+            val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val fullScreenPending = PendingIntentHelper.createActivity(
+                context,
+                (id and 0x7FFFFFFF).toInt(),
+                callIntent
+            )
+            val notification = NotificationCompat.Builder(context, channelId)
+                .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+                .setContentTitle("Напоминание")
+                .setContentText(message)
+                .setContentIntent(fullScreenPending)
+                .setFullScreenIntent(fullScreenPending, true)
+                .setAutoCancel(true)
+                .setPriority(NotificationCompat.PRIORITY_MAX)
+                .setCategory(NotificationCompat.CATEGORY_CALL)
+                .build()
+            manager.notify((id and 0x7FFFFFFF).toInt(), notification)
         } catch (_: Throwable) { }
     }
 
     companion object {
         const val EXTRA_ID = "reminder_id"
         const val EXTRA_MSG = "MSG"
+        /** При ответе открыть CallActivity и воспроизвести TTS через основной динамик (используется при выключенном API звонков). */
+        const val EXTRA_OPEN_CALL_ACTIVITY_ON_ANSWER = "open_call_activity_on_answer"
     }
 }

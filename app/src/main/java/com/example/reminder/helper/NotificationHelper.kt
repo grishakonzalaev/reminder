@@ -36,4 +36,17 @@ object NotificationHelper {
         }
         return Constants.CHANNEL_ID_REMINDER_FG
     }
+
+    fun createCalendarSyncChannel(context: Context): String {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val channel = NotificationChannel(
+                Constants.CHANNEL_ID_CALENDAR_SYNC,
+                "Синхронизация календаря",
+                NotificationManager.IMPORTANCE_LOW
+            )
+            manager.createNotificationChannel(channel)
+        }
+        return Constants.CHANNEL_ID_CALENDAR_SYNC
+    }
 }

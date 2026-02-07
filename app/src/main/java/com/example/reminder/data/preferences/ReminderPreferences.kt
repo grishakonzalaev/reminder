@@ -14,6 +14,7 @@ object ReminderPreferences {
     private const val KEY_LANGUAGE = "language"
     private const val KEY_ADD_TO_CALENDAR = "add_to_calendar"
     private const val KEY_SYNC_FROM_CALENDAR = "sync_from_calendar"
+    private const val KEY_CALENDAR_SYNC_FOREGROUND = "calendar_sync_foreground"
     private const val KEY_WRITE_CALENDAR_ID = "write_calendar_id"
     private const val KEY_READ_CALENDAR_ID = "read_calendar_id"
     private const val KEY_SNOOZE_ENABLED = "snooze_enabled"
@@ -163,6 +164,15 @@ object ReminderPreferences {
 
     fun setSyncFromCalendar(context: Context, enabled: Boolean) {
         prefs(context).edit().putBoolean(KEY_SYNC_FROM_CALENDAR, enabled).apply()
+    }
+
+    /** Опциональный foreground-сервис: уведомление в шторке, синхронизация календаря стабильнее на Honor/Xiaomi. */
+    fun getCalendarSyncForeground(context: Context): Boolean {
+        return prefs(context).getBoolean(KEY_CALENDAR_SYNC_FOREGROUND, false)
+    }
+
+    fun setCalendarSyncForeground(context: Context, enabled: Boolean) {
+        prefs(context).edit().putBoolean(KEY_CALENDAR_SYNC_FOREGROUND, enabled).apply()
     }
 
     /** ID календаря для записи напоминаний; 0 = первый доступный. */

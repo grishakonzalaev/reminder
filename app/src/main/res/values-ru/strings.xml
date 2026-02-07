@@ -41,6 +41,8 @@
     <string name="settings_add_to_calendar_description">При включении каждое напоминание создаётся как событие в календаре Android.</string>
     <string name="settings_sync_from_calendar">Читать календарь и добавлять события как напоминания</string>
     <string name="settings_sync_from_calendar_description">При включении приложение раз в пол минуты читает календарь и добавляет будущие события (на 30 дней вперёд) в список напоминаний.</string>
+    <string name="settings_calendar_sync_foreground">Надёжная синхронизация (уведомление в шторке)</string>
+    <string name="settings_calendar_sync_foreground_description">Показывает постоянное уведомление и держит синхронизацию календаря на Honor, Xiaomi и подобных устройствах.</string>
     <string name="settings_write_calendar">Календарь для записи напоминаний</string>
     <string name="settings_read_calendar">Календарь для чтения событий</string>
     <string name="calendar_first_available">Первый доступный</string>
