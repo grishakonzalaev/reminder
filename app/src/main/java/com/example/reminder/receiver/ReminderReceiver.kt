@@ -12,8 +12,13 @@ import com.example.reminder.Constants
 import com.example.reminder.app.ReminderApp
 import com.example.reminder.data.preferences.TtsPreferences
 import com.example.reminder.helper.NotificationHelper
+import com.example.reminder.data.model.Reminder
+import com.example.reminder.data.repository.ReminderRepository
 import com.example.reminder.helper.PendingIntentHelper
+import com.example.reminder.scheduler.AlarmScheduler
 import com.example.reminder.ui.activity.CallActivity
+import kotlinx.coroutines.runBlocking
+import java.util.Calendar
 
 class ReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -37,6 +42,7 @@ class ReminderReceiver : BroadcastReceiver() {
                     }
                     try {
                         telecomManager.addNewIncomingCall(handle, extras)
+                        rescheduleIfRepeating(context, id)
                         return
                     } catch (_: Exception) { }
                 }
@@ -72,7 +78,33 @@ class ReminderReceiver : BroadcastReceiver() {
                 .setCategory(NotificationCompat.CATEGORY_CALL)
                 .build()
             manager.notify((id and 0x7FFFFFFF).toInt(), notification)
+            rescheduleIfRepeating(context, id)
         } catch (_: Throwable) { }
+    }
+
+    private fun rescheduleIfRepeating(context: Context, reminderId: Long) {
+        if (reminderId < 0) return
+        runBlocking {
+            val repo = ReminderRepository(context.applicationContext)
+            val reminder = repo.getReminderById(reminderId) ?: return@runBlocking
+            val rt = reminder.repeatType ?: "none"
+            if (rt == "none") return@runBlocking
+            val nextMillis = nextOccurrenceMillis(reminder.timeMillis, rt)
+            repo.updateReminder(reminder.id, reminder.message, nextMillis, rt)
+            val next = Reminder(reminder.id, reminder.message, nextMillis, rt)
+            AlarmScheduler(context.applicationContext).schedule(next)
+        }
+    }
+
+    private fun nextOccurrenceMillis(timeMillis: Long, repeatType: String): Long {
+        val cal = Calendar.getInstance().apply { timeInMillis = timeMillis }
+        when (repeatType) {
+            "daily" -> cal.add(Calendar.DAY_OF_MONTH, 1)
+            "monthly" -> cal.add(Calendar.MONTH, 1)
+            "yearly" -> cal.add(Calendar.YEAR, 1)
+            else -> return timeMillis
+        }
+        return cal.timeInMillis
     }
 
     companion object {

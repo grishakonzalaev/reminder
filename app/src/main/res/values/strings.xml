@@ -16,6 +16,11 @@
     <string name="dialog_new_reminder">New Reminder</string>
     <string name="dialog_edit_reminder">Edit Reminder</string>
     <string name="dialog_reminder_text">Reminder text (TTS will speak)</string>
+    <string name="dialog_repeat">Repeat</string>
+    <string name="repeat_none">Once</string>
+    <string name="repeat_daily">Daily</string>
+    <string name="repeat_monthly">Monthly</string>
+    <string name="repeat_yearly">Yearly</string>
     <string name="dialog_time">Time: %s</string>
     <string name="button_save">Save</string>
     <string name="dialog_delete_reminder">Delete reminder?</string>

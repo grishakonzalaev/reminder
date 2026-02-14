@@ -32,15 +32,19 @@ class ReminderRepository(private val context: Context) {
         migrateFromSharedPreferences()
     }
 
-    suspend fun addReminder(message: String, timeMillis: Long): Reminder = withContext(Dispatchers.IO) {
-        val reminder = Reminder(id = 0, message = message, timeMillis = timeMillis)
+    suspend fun addReminder(message: String, timeMillis: Long, repeatType: String = "none"): Reminder = withContext(Dispatchers.IO) {
+        val reminder = Reminder(id = 0, message = message, timeMillis = timeMillis, repeatType = repeatType)
         val id = reminderDao.insert(reminder)
         reminder.copy(id = id)
     }
 
-    suspend fun updateReminder(id: Long, message: String, timeMillis: Long) = withContext(Dispatchers.IO) {
-        val reminder = Reminder(id = id, message = message, timeMillis = timeMillis)
+    suspend fun updateReminder(id: Long, message: String, timeMillis: Long, repeatType: String = "none") = withContext(Dispatchers.IO) {
+        val reminder = Reminder(id = id, message = message, timeMillis = timeMillis, repeatType = repeatType)
         reminderDao.update(reminder)
+    }
+
+    suspend fun getReminderById(id: Long): Reminder? = withContext(Dispatchers.IO) {
+        reminderDao.getById(id)
     }
 
     suspend fun deleteReminder(reminder: Reminder) = withContext(Dispatchers.IO) {

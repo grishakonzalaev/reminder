@@ -103,8 +103,8 @@ fun ReminderScreen(viewModel: ReminderViewModel = viewModel()) {
         ReminderDialog(
             reminder = null,
             onDismiss = { showAddDialog = false },
-            onConfirm = { message, timeMillis ->
-                viewModel.addReminder(message, timeMillis)
+            onConfirm = { message, timeMillis, repeatType ->
+                viewModel.addReminder(message, timeMillis, repeatType)
                 showAddDialog = false
             }
         )
@@ -114,8 +114,8 @@ fun ReminderScreen(viewModel: ReminderViewModel = viewModel()) {
         ReminderDialog(
             reminder = reminder,
             onDismiss = { reminderToEdit = null },
-            onConfirm = { message, timeMillis ->
-                viewModel.updateReminder(reminder, message, timeMillis)
+            onConfirm = { message, timeMillis, repeatType ->
+                viewModel.updateReminder(reminder, message, timeMillis, repeatType)
                 reminderToEdit = null
             }
         )

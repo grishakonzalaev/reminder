@@ -73,7 +73,6 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
             val readCalendarId = ReminderPreferences.getReadCalendarId(app)
             val instances = CalendarHelper.queryFutureInstances(app, now, toMillis, readCalendarId)
             for (inst in instances) {
-                if (repo.isCalendarEventMapped(inst.eventId)) continue
                 if (repo.isCalendarInstanceImported(inst.eventId, inst.beginMillis)) continue
                 val message = inst.title.ifBlank { "Событие календаря" }
                 val reminder = repo.addReminder(message, inst.beginMillis)
@@ -84,9 +83,9 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun addReminder(message: String, timeMillis: Long) {
+    fun addReminder(message: String, timeMillis: Long, repeatType: String = "none") {
         viewModelScope.launch {
-            val reminder = repo.addReminder(message, timeMillis)
+            val reminder = repo.addReminder(message, timeMillis, repeatType)
             alarmScheduler.schedule(reminder)
             if (ReminderPreferences.getAddToCalendar(app)) {
                 withContext(Dispatchers.IO) {
@@ -99,11 +98,11 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun updateReminder(reminder: Reminder, message: String, timeMillis: Long) {
+    fun updateReminder(reminder: Reminder, message: String, timeMillis: Long, repeatType: String = "none") {
         viewModelScope.launch {
             alarmScheduler.cancel(reminder.id)
-            repo.updateReminder(reminder.id, message, timeMillis)
-            val updated = Reminder(id = reminder.id, message = message, timeMillis = timeMillis)
+            repo.updateReminder(reminder.id, message, timeMillis, repeatType)
+            val updated = Reminder(id = reminder.id, message = message, timeMillis = timeMillis, repeatType = repeatType)
             alarmScheduler.schedule(updated)
             if (ReminderPreferences.getAddToCalendar(app)) {
                 repo.getCalendarEventId(reminder.id)?.let { eventId ->

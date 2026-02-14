@@ -8,5 +8,7 @@ data class Reminder(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val message: String,
-    val timeMillis: Long
+    val timeMillis: Long,
+    /** none | daily | monthly | yearly; null при чтении из старых БД трактуется как "none" */
+    val repeatType: String? = "none"
 )

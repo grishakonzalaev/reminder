@@ -16,6 +16,11 @@
     <string name="dialog_new_reminder">Новое напоминание</string>
     <string name="dialog_edit_reminder">Редактировать напоминание</string>
     <string name="dialog_reminder_text">Текст напоминания (озвучит TTS)</string>
+    <string name="dialog_repeat">Повтор</string>
+    <string name="repeat_none">Один раз</string>
+    <string name="repeat_daily">Ежедневно</string>
+    <string name="repeat_monthly">Ежемесячно</string>
+    <string name="repeat_yearly">Ежегодно</string>
     <string name="dialog_time">Время: %s</string>
     <string name="button_save">Сохранить</string>
     <string name="dialog_delete_reminder">Удалить напоминание?</string>

@@ -28,9 +28,9 @@ interface ReminderDao {
     @Query("DELETE FROM reminders WHERE id IN (:ids)")
     suspend fun deleteByIds(ids: List<Long>)
 
-    @Query("DELETE FROM reminders WHERE timeMillis < :timestampMillis")
+    @Query("DELETE FROM reminders WHERE timeMillis < :timestampMillis AND (repeatType IS NULL OR repeatType = 'none')")
     suspend fun deletePastReminders(timestampMillis: Long): Int
 
-    @Query("SELECT * FROM reminders WHERE timeMillis < :timestampMillis")
+    @Query("SELECT * FROM reminders WHERE timeMillis < :timestampMillis AND (repeatType IS NULL OR repeatType = 'none')")
     suspend fun getPastReminders(timestampMillis: Long): List<Reminder>
 }
