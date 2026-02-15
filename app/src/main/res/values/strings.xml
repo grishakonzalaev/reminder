@@ -11,6 +11,8 @@
     <string name="button_delete">Delete</string>
     <string name="selected_count">Selected: %d</string>
     <string name="empty_state_title">No reminders. Tap "Add".</string>
+    <string name="section_repeating">Repeating reminders</string>
+    <string name="section_one_time">One-time reminders</string>
     <string name="empty_state_notifications">If only notification shows when triggered — tap "Notifications" and allow full-screen notifications.</string>
     <string name="empty_state_calls">For headset to treat reminders as calls — tap "Calls" and enable "Reminder".</string>
     <string name="dialog_new_reminder">New Reminder</string>

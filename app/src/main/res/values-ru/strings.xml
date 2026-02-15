@@ -11,6 +11,8 @@
     <string name="button_delete">Удалить</string>
     <string name="selected_count">Выбрано: %d</string>
     <string name="empty_state_title">Нет напоминаний. Нажмите «Добавить».</string>
+    <string name="section_repeating">Повторяющиеся напоминания</string>
+    <string name="section_one_time">Однократные напоминания</string>
     <string name="empty_state_notifications">Если при срабатывании показывается только уведомление — нажмите «Уведомления» и разрешите полноэкранные уведомления.</string>
     <string name="empty_state_calls">Чтобы гарнитура воспринимала напоминания как звонок — нажмите «Звонки» и включите «Напоминалка».</string>
     <string name="dialog_new_reminder">Новое напоминание</string>
